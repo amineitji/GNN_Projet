@@ -311,7 +311,7 @@ def safe_int_input(prompt, default):
     try:
         return int(val_str)
     except ValueError:
-        print(f"Entrée invalide. Utilisation de la valeur par défaut : {default}")
+        print(f"Invalid input. Using default value: {default}")
         return default
 
 def get_interactive_gat_config():
@@ -320,13 +320,14 @@ def get_interactive_gat_config():
     """
     clear_screen()
     print("="*70)
-    print("🔧 CONFIGURATION DE L'EXPÉRIENCE 'IMPROVED GAT'")
+    print("🔧 'IMPROVED GAT' EXPERIMENT CONFIGURATION")
     print("="*70)
-    print("Veuillez saisir les hyperparamètres. Laissez vide pour utiliser la valeur par défaut.")
+    print("Please enter hyperparameters. Leave blank to use default values.")
     
-    hidden = safe_int_input(f"  - Canaux cachés (default: {DEFAULT_GAT_CONFIG['hidden_channels']}): ", DEFAULT_GAT_CONFIG['hidden_channels'])
-    layers = safe_int_input(f"  - Nombre de couches (default: {DEFAULT_GAT_CONFIG['num_layers']}): ", DEFAULT_GAT_CONFIG['num_layers'])
-    heads = safe_int_input(f"  - Nombre de têtes (default: {DEFAULT_GAT_CONFIG['num_heads']}): ", DEFAULT_GAT_CONFIG['num_heads'])
+    # <<< MODIFICATION >>> Noms des hyperparamètres en anglais
+    hidden = safe_int_input(f"  - hidden_channels (default: {DEFAULT_GAT_CONFIG['hidden_channels']}): ", DEFAULT_GAT_CONFIG['hidden_channels'])
+    layers = safe_int_input(f"  - num_layers (default: {DEFAULT_GAT_CONFIG['num_layers']}): ", DEFAULT_GAT_CONFIG['num_layers'])
+    heads = safe_int_input(f"  - num_heads (default: {DEFAULT_GAT_CONFIG['num_heads']}): ", DEFAULT_GAT_CONFIG['num_heads'])
 
     config = {
         'hidden_channels': hidden,
@@ -334,6 +335,22 @@ def get_interactive_gat_config():
         'num_heads': heads
     }
     return config
+
+
+# =====================================================================
+# <<< PARTIE 4 : POINT D'ENTRÉE PRINCIPAL (MODIFIÉ) >>>
+# =====================================================================
+
+if __name__ == "__main__":
+    # Mode "Revue" : python main.py review
+    if len(sys.argv) > 1 and sys.argv[1].lower() == 'review':
+        review_experiments()
+    else:
+        # Mode "Nouvelle Expérience" : python main.py
+        # 1. Obtenir la configuration de l'utilisateur
+        custom_gat_config = get_interactive_gat_config()
+        # 2. Lancer la série complète d'expériences avec cette config
+        run_full_experiment(custom_gat_config)
 
 
 # =====================================================================
