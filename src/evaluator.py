@@ -3,10 +3,11 @@ import numpy as np
 
 
 class AnomalyEvaluator:
-    def __init__(self, model, data, device='cpu'):
+    def __init__(self, model, data, device='cpu', pop_weight=0.6):
         self.model = model.to(device)
         self.data = data.to(device)
         self.device = device
+        self.pop_weight = pop_weight # Pondération pour le score de population
         
     @torch.no_grad()
     def compute_anomaly_scores(self):
@@ -25,7 +26,9 @@ class AnomalyEvaluator:
         country_score = (1 - true_probs).cpu().numpy()
         
         # Combined
-        combined = 0.6 * pop_error + 0.4 * country_score
+        # <<< MODIFICATION >>>
+        # Utilisation des poids définis dans __init__
+        combined = (self.pop_weight * pop_error) + ((1 - self.pop_weight) * country_score)
         
         return {
             'population_error': pop_error,

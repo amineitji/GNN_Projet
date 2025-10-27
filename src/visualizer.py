@@ -8,11 +8,15 @@ sns.set_style("whitegrid")
 
 
 class Visualizer:
-    def __init__(self, dpi=300):
+    # <<< MODIFICATION >>>
+    # Accepte un dossier de sauvegarde spécifique pour cette "run"
+    def __init__(self, save_dir, dpi=300):
         self.dpi = dpi
-        Path('viz').mkdir(exist_ok=True)
+        self.save_dir = Path(save_dir)
+        # S'assure que le dossier spécifique existe
+        self.save_dir.mkdir(parents=True, exist_ok=True)
         
-    def plot_training_curves(self, history, save_path):
+    def plot_training_curves(self, history, save_path_suffix):
         fig, axes = plt.subplots(1, 2, figsize=(14, 5))
         
         axes[0].plot(history['train_loss'], label='Train', linewidth=2)
@@ -34,10 +38,13 @@ class Visualizer:
         ax2.legend(loc='upper right')
         
         plt.tight_layout()
+        # <<< MODIFICATION >>>
+        # Sauvegarde dans le dossier de la "run"
+        save_path = self.save_dir / f'training_{save_path_suffix}.png'
         plt.savefig(save_path, dpi=self.dpi, bbox_inches='tight')
         plt.close()
         
-    def plot_anomaly_distribution(self, scores, threshold=None, save_path='viz/anomaly_dist.png'):
+    def plot_anomaly_distribution(self, scores, threshold=None, save_path_suffix='anomaly_dist'):
         fig, axes = plt.subplots(1, 2, figsize=(14, 5))
         
         axes[0].hist(scores, bins=50, color='skyblue', edgecolor='black', alpha=0.7)
@@ -54,10 +61,13 @@ class Visualizer:
         axes[1].grid(axis='y', alpha=0.3)
         
         plt.tight_layout()
+        # <<< MODIFICATION >>>
+        # Sauvegarde dans le dossier de la "run"
+        save_path = self.save_dir / f'{save_path_suffix}.png'
         plt.savefig(save_path, dpi=self.dpi, bbox_inches='tight')
         plt.close()
     
-    def plot_tsne(self, embeddings, labels, scores=None, save_path='viz/tsne.png'):
+    def plot_tsne(self, embeddings, labels, scores=None, save_path_suffix='tsne'):
         tsne = TSNE(n_components=2, random_state=42)
         emb_2d = tsne.fit_transform(embeddings)
         
@@ -72,5 +82,8 @@ class Visualizer:
             plt.colorbar(sc, ax=axes[1], label='Anomaly Score')
         
         plt.tight_layout()
+        # <<< MODIFICATION >>>
+        # Sauvegarde dans le dossier de la "run"
+        save_path = self.save_dir / f'{save_path_suffix}.png'
         plt.savefig(save_path, dpi=self.dpi, bbox_inches='tight')
         plt.close()
