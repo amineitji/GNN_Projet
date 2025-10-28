@@ -15,11 +15,16 @@ import sys
 import os
 
 from src.data_loader import AirportDataLoader
+
 from src.models import BaselineGCN, AnomalyDetectorGCN, ImprovedGAT
 from src.trainer import Trainer
 from src.evaluator import AnomalyEvaluator
 from src.visualizer import Visualizer
 
+from src.connectivity_features import compute_connectivity_features
+from src.models_anomaly_guided import ImprovedGATWithAnomalyGuidedLearning
+from src.trainer_anomaly_guided import TrainerWithAnomalyGuidedLearning
+from src.evaluator_anomaly_guided import AnomalyEvaluatorWithLinkGuidance
 
 # ==================== CONFIGURATION ====================
 DATA_PATH = "data/airportsAndCoordAndPop.graphml.xml"
@@ -42,21 +47,21 @@ DEFAULT_GAT_CONFIG = {
 
 def run_experiment(model_name, model, data, experiment_alpha=0.6):
     """Lance une expérience complète (une seule)"""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"🚀 {model_name} (Alpha: {experiment_alpha})")
-    print(f"{'='*60}")
-    
+    print(f"{'=' * 60}")
+
     trainer = Trainer(model, data, DEVICE)
     history = trainer.fit(epochs=EPOCHS, lr=LEARNING_RATE, alpha=experiment_alpha)
-    
+
     evaluator = AnomalyEvaluator(model, data, DEVICE)
-    all_scores = evaluator.compute_anomaly_scores() 
-    
+    all_scores = evaluator.compute_anomaly_scores()
+
     results_list = []
     score_types = ['combined_score', 'population_error', 'country_score']
-    
+
     print("\n📊 Évaluation des scores (sur ensemble test):")
-    
+
     for score_type in score_types:
         test_scores = all_scores[score_type][data.test_mask.cpu().numpy()]
         results = {
@@ -72,11 +77,47 @@ def run_experiment(model_name, model, data, experiment_alpha=0.6):
         print(f"  - Score: {score_type:<17} | Q95: {results['q95']:.4f} | Q99: {results['q99']:.4f}")
 
     anomalies = evaluator.get_top_anomalies(all_scores['combined_score'], k=10)
-    
+
+    # ⭐ NOUVEAU : Récupérer les prédictions du modèle
+    with torch.no_grad():
+        pop_pred, country_pred, _ = model(data.x, data.edge_index)
+        predicted_pops = torch.expm1(pop_pred.squeeze()).cpu().numpy()
+        predicted_countries = country_pred.argmax(dim=1).cpu().numpy()
+
+    # Créer un mapping index → nom de pays (UNE SEULE FOIS)
+    country_idx_to_name = {}
+    for node_idx in range(len(data.country_labels)):
+        idx = data.country_labels[node_idx]
+        if idx not in country_idx_to_name:
+            country_idx_to_name[idx] = data.country_names[node_idx]
+
     print(f"\n📊 Top 10 Anomalies (basé sur 'combined_score'):")
+    print("=" * 80)
     for i, a in enumerate(anomalies, 1):
-        print(f"  {i}. {a['city']}, {a['country']} - Score: {a['score']:.3f}")
-    
+        idx = a['index']
+        observed_pop = a['population']
+        predicted_pop = predicted_pops[idx]
+        pop_diff = predicted_pop - observed_pop
+        pop_diff_pct = (pop_diff / (observed_pop + 1)) * 100
+
+        # Récupérer les pays
+        observed_country = a['country']
+        observed_country_idx = data.country_labels[idx]
+        predicted_country_idx = predicted_countries[idx]
+        predicted_country = country_idx_to_name.get(predicted_country_idx, f"UNKNOWN_{predicted_country_idx}")
+
+        # Vérifier si correct
+        country_match = "✅" if observed_country_idx == predicted_country_idx else "❌"
+
+        print(f"\n  #{i}. {a['city']}, {observed_country}")
+        print(f"      Population observée : {observed_pop:>12,.0f} habitants")
+        print(f"      Population prédite  : {predicted_pop:>12,.0f} habitants")
+        print(f"      Différence          : {pop_diff:>+12,.0f} ({pop_diff_pct:+.1f}%)")
+        print(f"      Pays observé        : {observed_country}")
+        print(f"      Pays prédit         : {predicted_country} {country_match}")
+        print(f"      Score d'anomalie    : {a['score']:.4f}")
+    print("\n" + "=" * 80)
+
     return results_list, all_scores, history
 
 
@@ -86,23 +127,23 @@ def run_full_experiment(gat_config):
     """
     Fonction principale pour lancer une série complète d'expériences.
     """
-    print("="*60)
+    print("=" * 60)
     print("🎯 GNN ANOMALY DETECTION (Mode: Nouvelle Expérience)")
-    print("="*60)
+    print("=" * 60)
     print(f"💻 Device: {DEVICE}\n")
-    
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = Path('results') / f'run_{timestamp}'
     run_dir.mkdir(parents=True, exist_ok=True)
     print(f"💾 Tous les résultats seront sauvegardés dans: {run_dir}")
-    
+
     print("📂 Loading data...")
     loader = AirportDataLoader(DATA_PATH)
     data = loader.load_data()
-    
+    data = compute_connectivity_features(data)  # AJOUTER après load_data()
     num_classes = len(np.unique(data.country_labels))
     in_channels = data.x.shape[1]
-    
+
     # <<< MODIFIÉ >>>
     # Les modèles de base sont fixes, le GAT utilise la config
     models_to_run = {
@@ -114,43 +155,158 @@ def run_full_experiment(gat_config):
             num_layers=gat_config['num_layers'],
             num_classes=num_classes,
             num_heads=gat_config['num_heads']
+        ),
+        # ⭐ NOUVEAU : Modèle avec Anomaly-Guided Learning
+        'GAT + Anomaly-Guided': ImprovedGATWithAnomalyGuidedLearning(
+            in_channels,
+            hidden_channels=gat_config['hidden_channels'],
+            num_layers=gat_config['num_layers'],
+            num_classes=num_classes,
+            num_heads=gat_config['num_heads']
         )
     }
-    
-    print("\n" + "="*60)
+
+    print("\n" + "=" * 60)
     print(f"🔬 Configuration 'Improved GAT' pour cette exécution:")
     print(f"  - hidden_channels: {gat_config['hidden_channels']}")
     print(f"  - num_layers: {gat_config['num_layers']}")
     print(f"  - num_heads: {gat_config['num_heads']}")
-    print("="*60)
+    print("=" * 60)
 
     all_results = []
     all_scores = {}
     all_histories = {}
-    
+
     for name, model in models_to_run.items():
         try:
-            results_list, scores, history = run_experiment(name, model, data)
+            # ⭐ Vérifier le type de modèle
+            if 'Anomaly-Guided' in name:
+                # === ENTRAÎNEMENT AVEC ANOMALY-GUIDED LEARNING ===
+                print(f"\n{'=' * 60}")
+                print(f"🚀 {name} (Anomaly-Guided Learning)")
+                print(f"{'=' * 60}")
+
+                trainer = TrainerWithAnomalyGuidedLearning(model, data, DEVICE)
+
+                # 🧠 PRÉCALCUL DES LIENS SUSPECTS (une seule fois ici)
+                trainer.prepare_link_batches(num_samples=2000)
+
+                # 🚀 Entraînement
+                history = trainer.fit(
+                    epochs=EPOCHS,
+                    lr=LEARNING_RATE,
+                    alpha=0.5,  # 50% population
+                    beta=0.3,  # 30% pays
+                    gamma=0.2  # 20% anomalies de liens
+                )
+
+                evaluator = AnomalyEvaluatorWithLinkGuidance(
+                    model, data, DEVICE, weights=(0.5, 0.3, 0.2)
+                )
+                all_scores_dict = evaluator.compute_anomaly_scores()
+
+                # Créer results_list
+                results_list = []
+                score_types = ['combined_score', 'population_error', 'country_score', 'link_score']
+
+                print("\n📊 Évaluation des scores (sur ensemble test):")
+                for score_type in score_types:
+                    test_scores = all_scores_dict[score_type][data.test_mask.cpu().numpy()]
+                    results = {
+                        'model': name,
+                        'train_alpha': 0.5,
+                        'score_type': score_type,
+                        'mean_score': float(np.mean(test_scores)),
+                        'std_score': float(np.std(test_scores)),
+                        'q95': float(np.percentile(test_scores, 95)),
+                        'q99': float(np.percentile(test_scores, 99))
+                    }
+                    results_list.append(results)
+                    print(f"  - Score: {score_type:<17} | Q95: {results['q95']:.4f} | Q99: {results['q99']:.4f}")
+
+                anomalies = evaluator.get_top_anomalies(all_scores_dict['combined_score'], k=10)
+
+                # ⭐ BONUS : Afficher les liens anormaux
+                print("\n🔗 Top 10 Liens Anormaux détectés :")
+                print("=" * 80)
+                embeddings_tensor = torch.tensor(all_scores_dict['embeddings'], device=DEVICE)
+                anomalous_links = evaluator.get_anomalous_links(embeddings_tensor, threshold=0.7, top_k=10)
+                for i, link in enumerate(anomalous_links, 1):
+                    print(f"\n  #{i}. {link['src_city']} ({link['src_country']})")
+                    print(f"       ↔ {link['dst_city']} ({link['dst_country']})")
+                    print(f"       Score d'anomalie : {link['anomaly_score']:.4f}")
+                print("\n" + "=" * 80)
+
+                # Affichage des anomalies de nœuds
+                with torch.no_grad():
+                    pop_pred, country_pred, _ = model(data.x, data.edge_index)
+                    predicted_pops = torch.expm1(pop_pred.squeeze()).cpu().numpy()
+                    predicted_countries = country_pred.argmax(dim=1).cpu().numpy()
+
+                country_idx_to_name = {}
+                for node_idx in range(len(data.country_labels)):
+                    idx = data.country_labels[node_idx]
+                    if idx not in country_idx_to_name:
+                        country_idx_to_name[idx] = data.country_names[node_idx]
+
+                print(f"\n📊 Top 10 Anomalies de Nœuds (guidé par liens):")
+                print("=" * 80)
+                for i, a in enumerate(anomalies, 1):
+                    idx = a['index']
+                    observed_pop = a['population']
+                    predicted_pop = predicted_pops[idx]
+                    pop_diff = predicted_pop - observed_pop
+                    pop_diff_pct = (pop_diff / (observed_pop + 1)) * 100
+
+                    observed_country = a['country']
+                    observed_country_idx = data.country_labels[idx]
+                    predicted_country_idx = predicted_countries[idx]
+                    predicted_country = country_idx_to_name.get(predicted_country_idx,
+                                                                f"UNKNOWN_{predicted_country_idx}")
+                    country_match = "✅" if observed_country_idx == predicted_country_idx else "❌"
+
+                    link_score = all_scores_dict['link_score'][idx]
+
+                    print(f"\n  #{i}. {a['city']}, {observed_country}")
+                    print(f"      Population observée : {observed_pop:>12,.0f} habitants")
+                    print(f"      Population prédite  : {predicted_pop:>12,.0f} habitants")
+                    print(f"      Différence          : {pop_diff:>+12,.0f} ({pop_diff_pct:+.1f}%)")
+                    print(f"      Pays observé        : {observed_country}")
+                    print(f"      Pays prédit         : {predicted_country} {country_match}")
+                    print(f"      🔗 Score liens      : {link_score:.4f}")
+                    print(f"      Score d'anomalie    : {a['score']:.4f}")
+                print("\n" + "=" * 80)
+
+                scores = all_scores_dict
+
+            else:
+                # === MODÈLES NORMAUX ===
+                # Alpha par défaut = 0.6 (défini dans la signature de run_experiment)
+                results_list, scores, history = run_experiment(name, model, data)
+
             all_results.extend(results_list)
             all_scores[name] = scores
             all_histories[name] = history
+
         except Exception as e:
             print(f"❌ Error with {name}: {e}")
+            import traceback
+            traceback.print_exc()
             continue
-    
+
     # ==================== ABLATION STUDY (LOSS) ====================
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🔬 ABLATION STUDY (Loss Function)")
     print(f"Lancement de l'ablation sur la configuration 'Improved GAT (Custom)'")
-    print("="*60)
-    
+    print("=" * 60)
+
     # <<< MODIFIÉ >>>
     # L'ablation utilise la MÊME configuration GAT que celle testée
     ablation_configs = {
         f"Improved GAT (Custom - Pop-Only)": {'alpha': 1.0},
         f"Improved GAT (Custom - Country-Only)": {'alpha': 0.0},
     }
-    
+
     for name, config in ablation_configs.items():
         print(f"\n--- Running Ablation: {name} ---")
         try:
@@ -175,36 +331,36 @@ def run_full_experiment(gat_config):
     # Tableau comparatif
     df = pd.DataFrame(all_results)
     df = df.sort_values(by=['train_alpha', 'model', 'q95'], ascending=[True, True, False])
-    
-    print("\n" + "="*60)
+
+    print("\n" + "=" * 60)
     print("📊 RESULTS COMPARISON (incl. Ablation Study)")
-    print("="*60)
+    print("=" * 60)
     with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.width', 1000):
         print(df.to_string(index=False, float_format="%.4f"))
-    
+
     csv_path = run_dir / 'comparison_full_results.csv'
     df.to_csv(csv_path, index=False)
     print(f"\n💾 Tableau de résultats sauvegardé sur {csv_path}")
-    
+
     # Visualisations
     print("\n📊 Generating visualizations...")
     viz = Visualizer(save_dir=run_dir)
-    
+
     for name, history in all_histories.items():
         clean_name = name.replace(" ", "_").replace("(", "").replace(")", "").replace(".", "")
         viz.plot_training_curves(history, f'{clean_name}')
-    
+
     try:
         # Visualise le modèle GAT custom que l'utilisateur vient de configurer
         best_name = 'Improved GAT (Custom)'
         print(f"\n📈 Visualisations (basées sur {best_name}) sauvegardées dans {run_dir}")
-        
+
         best_scores_dict = all_scores[best_name]
         best_combined_scores = best_scores_dict['combined_score']
-        
+
         viz.plot_anomaly_distribution(best_combined_scores, np.percentile(best_combined_scores, 95))
         viz.plot_tsne(best_scores_dict['embeddings'], data.country_labels, best_combined_scores)
-        
+
         print("\n✅ Done! Check 'results/' folder for visualizations")
     except KeyError:
         print(f"\n❌ Erreur : Le modèle '{best_name}' n'a pas pu être évalué. Visualisations ignorées.")
@@ -221,17 +377,18 @@ def clear_screen():
     """Efface le terminal pour une meilleure lisibilité"""
     os.system('cls' if os.name == 'nt' else 'clear')
 
+
 def show_experiment_files(run_dir):
     """Affiche les fichiers d'une exécution spécifique"""
     clear_screen()
-    print("="*70)
+    print("=" * 70)
     print(f"🔬 Visualisation de l'exécution: {run_dir.name}")
-    print("="*70)
-    
+    print("=" * 70)
+
     files = sorted(list(run_dir.glob('*')))
     csv_files = [f for f in files if f.suffix == '.csv']
     img_files = [f for f in files if f.suffix in ['.png', '.jpg', '.jpeg']]
-    
+
     if csv_files:
         print("\n--- 📊 Tableau de Comparaison ---")
         try:
@@ -249,8 +406,8 @@ def show_experiment_files(run_dir):
             print(f"  - {img.name}")
     else:
         print("\n--- ❌ Aucune image trouvée ---")
-        
-    print("\n" + "="*70)
+
+    print("\n" + "=" * 70)
     print("Appuyez sur 'Entrée' pour revenir au menu principal...")
     input()
 
@@ -287,7 +444,7 @@ def review_experiments():
         
         if choice.lower() == 'q':
             break
-            
+
         try:
             choice_idx = int(choice) - 1
             if 0 <= choice_idx < len(runs):
@@ -298,6 +455,7 @@ def review_experiments():
         except ValueError:
             print("Veuillez entrer un numéro valide.")
             input("Appuyez sur 'Entrée' pour réessayer.")
+
 
 # =====================================================================
 # <<< PARTIE 3 : NOUVELLE LOGIQUE DE PROMPT INTERACTIF >>>
@@ -314,20 +472,24 @@ def safe_int_input(prompt, default):
         print(f"Invalid input. Using default value: {default}")
         return default
 
+
 def get_interactive_gat_config():
     """
     Demande à l'utilisateur de saisir les hyperparamètres pour le modèle GAT.
     """
     clear_screen()
-    print("="*70)
+    print("=" * 70)
     print("🔧 'IMPROVED GAT' EXPERIMENT CONFIGURATION")
-    print("="*70)
+    print("=" * 70)
     print("Please enter hyperparameters. Leave blank to use default values.")
-    
+
     # <<< MODIFICATION >>> Noms des hyperparamètres en anglais
-    hidden = safe_int_input(f"  - hidden_channels (default: {DEFAULT_GAT_CONFIG['hidden_channels']}): ", DEFAULT_GAT_CONFIG['hidden_channels'])
-    layers = safe_int_input(f"  - num_layers (default: {DEFAULT_GAT_CONFIG['num_layers']}): ", DEFAULT_GAT_CONFIG['num_layers'])
-    heads = safe_int_input(f"  - num_heads (default: {DEFAULT_GAT_CONFIG['num_heads']}): ", DEFAULT_GAT_CONFIG['num_heads'])
+    hidden = safe_int_input(f"  - hidden_channels (default: {DEFAULT_GAT_CONFIG['hidden_channels']}): ",
+                            DEFAULT_GAT_CONFIG['hidden_channels'])
+    layers = safe_int_input(f"  - num_layers (default: {DEFAULT_GAT_CONFIG['num_layers']}): ",
+                            DEFAULT_GAT_CONFIG['num_layers'])
+    heads = safe_int_input(f"  - num_heads (default: {DEFAULT_GAT_CONFIG['num_heads']}): ",
+                           DEFAULT_GAT_CONFIG['num_heads'])
 
     config = {
         'hidden_channels': hidden,
@@ -352,18 +514,6 @@ if __name__ == "__main__":
         # 2. Lancer la série complète d'expériences avec cette config
         run_full_experiment(custom_gat_config)
 
-
 # =====================================================================
 # <<< PARTIE 4 : POINT D'ENTRÉE PRINCIPAL (MODIFIÉ) >>>
 # =====================================================================
-
-if __name__ == "__main__":
-    # Mode "Revue" : python main.py review
-    if len(sys.argv) > 1 and sys.argv[1].lower() == 'review':
-        review_experiments()
-    else:
-        # Mode "Nouvelle Expérience" : python main.py
-        # 1. Obtenir la configuration de l'utilisateur
-        custom_gat_config = get_interactive_gat_config()
-        # 2. Lancer la série complète d'expériences avec cette config
-        run_full_experiment(custom_gat_config)
