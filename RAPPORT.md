@@ -45,7 +45,7 @@ Chaque nœud représente un aéroport et contient ses coordonnées géographique
 
 ---
 
-#### 📊 Statistiques générales
+#### Statistiques générales
 
 | Élément | Valeur |
 |----------|--------|
@@ -58,7 +58,7 @@ L’important nombre de pays (212) montre la forte diversité géographique, mai
 
 ---
 
-#### 🧩 Types de données
+#### Types de données
 
 | Colonne | Type |
 |----------|------|
@@ -74,7 +74,7 @@ Cela garantit un pré-traitement fiable et une intégration directe dans le mod�
 
 ---
 
-#### 🌍 Top 10 des pays les plus représentés
+#### Top 10 des pays les plus représentés
 
 | Pays | Nombre d’aéroports |
 |------|--------------------|
@@ -96,7 +96,7 @@ Il faudra donc surveiller la performance de classification et le risque de biais
 
 ---
 
-#### 📈 Statistiques descriptives des colonnes numériques
+#### Statistiques descriptives des colonnes numériques
 
 | Mesure | Longitude | Latitude | Population |
 |---------|------------|-----------|-------------|
@@ -139,6 +139,26 @@ $$
 
 La recherche du $\alpha$ optimal est un élément central de notre analyse (voir Section 3.2).
 
+Afin d’enrichir encore la représentation du graphe, nous avons étendu cette approche multi-objectifs à une **troisième tâche** :  
+la **détection d’anomalies de liens** entre aéroports.
+
+L’idée est que certaines connexions entre nœuds peuvent être *incohérentes* du point de vue géographique ou structurel —  
+par exemple, une **petite ville connectée directement à un grand hub étranger**, ou deux nœuds appartenant à des pays sans lien habituel.
+
+Pour cela, nous introduisons une composante de perte supplémentaire $\mathcal{L}_{\text{link}}$, pondérée par un coefficient $\gamma$ :
+
+$$\mathcal{L}_{\text{total}} = \alpha \cdot \mathcal{L}_{\text{pop}}+ (1 - \alpha - \gamma) \cdot \mathcal{L}_{\text{country}}+ \gamma \cdot \mathcal{L}_{\text{link}}$$
+
+où :
+
+- $\mathcal{L}_{\text{link}}$ mesure la **cohérence structurelle** entre deux nœuds connectés,  
+  en évaluant la similarité de leurs embeddings (`z_i` et `z_j`).  
+  Des paires de nœuds très différentes mais connectées obtiennent un **score d’anomalie élevé**.
+- $\gamma$ contrôle le poids de cette supervision supplémentaire dans l’entraînement global.
+
+Cette extension — implémentée dans le modèle `ImprovedGATWithAnomalyGuidedLearning` — permet au réseau d’apprendre non seulement à **prédire les attributs des nœuds**, mais aussi à **identifier les connexions improbables**.  
+Elle renforce la robustesse du modèle face aux **incohérences structurelles du graphe** et constitue la base du module de **détection d’anomalies de liens** présenté plus loin dans le rapport.
+
 ### 2.3. Métrique d'Évaluation (Score d'Anomalie)
 
 Après l'entraînement, la classe `AnomalyEvaluator` calcule un score d'anomalie pour *chaque* nœud. Ce score est défini de manière similaire à la loss d'entraînement, mais il est fixe pour permettre une comparaison équitable entre les modèles.
@@ -154,7 +174,54 @@ $$
 
 Pour comparer les modèles, nous n'utilisons pas l'erreur *moyenne* (qui serait masquée par les milliers de nœuds faciles à prédire), mais le **95ème percentile (Q95)** du score d'anomalie sur l'ensemble de test. Un modèle avec un Q95 plus **bas** est meilleur, car il indique que même les 5% de nœuds les plus "anormaux" ont été prédits avec une erreur relativement faible.
 
+Pour le modèle **GAT + Anomaly-Guided**, une **troisième composante** est ajoutée pour évaluer la cohérence des **liens** du graphe :
+
+- **Score de Lien ($s_{link}$)** : évalue la similarité entre deux aéroports connectés.  
+  Deux nœuds reliés mais très différents dans l’espace latent (par ex. une petite ville isolée connectée à un grand hub étranger) reçoivent un score élevé, signe d’une **anomalie structurelle**.
+
+Le score global devient alors :
+
+$$
+\text{Score}_{\text{Anomalie}} =
+\alpha \, e_{pop} +
+\beta \, s_{country} +
+\gamma \, s_{link}
+$$
+
+avec $(\alpha, \beta, \gamma) = (0.5, 0.3, 0.2)$ dans le `main.py`.  
+Ces pondérations équilibrent les erreurs individuelles (nœuds) et les incohérences de structure (liens).
+
+L’évaluateur `AnomalyEvaluatorWithLinkGuidance` permet ensuite d’identifier :
+- les **nœuds les plus atypiques** selon le score combiné, et  
+- les **10 liens les plus anormaux**, révélant des connexions géographiques ou topologiques inhabituelles.
+
 ---
+
+##### Construction des Features de Lien
+
+Avant le calcul du `link_score`, le modèle construit explicitement des **features de lien** à partir des paires de nœuds connectés (méthode `compute_link_features()`).  
+Chaque vecteur de lien $f_{link}(i,j)$ combine les représentations latentes des deux nœuds :
+
+$$
+f_{link}(i, j) = [z_i, z_j, |z_i - z_j|]
+$$
+
+Ces caractéristiques sont ensuite passées dans un sous-réseau (`link_anomaly_detector`) qui évalue la cohérence topologique du lien.  
+Le score résultant est intégré à la fonction de perte :
+
+$$
+\mathcal{L}_{\text{total}} =
+\alpha \cdot \mathcal{L}_{pop} +
+\beta \cdot \mathcal{L}_{country} +
+\gamma \cdot \mathcal{L}_{link}
+$$
+
+Cette approche permet au modèle d’apprendre non seulement les propriétés locales des nœuds, mais aussi la structure globale du graphe, en identifiant des **liaisons atypiques** entre aéroports.
+
+---
+
+
+
 
 ## 3. Recherche d'un Modèle Adapté ("Évaluations à Tâton")
 
@@ -273,6 +340,71 @@ La visualisation t-SNE est très révélatrice :
 * **Conclusion** : Il s'agit d'une autre **erreur factuelle flagrante**. Xi'an est une métropole de plus de 10 millions d'habitants. Le modèle a appris qu'un nœud avec un tel degré et de telles connexions ne pouvait pas avoir la population d'un petit village, et l'a donc signalé comme une anomalie majeure.
 
 ---
+
+### 4.5 Analyse des Liens Anormaux Détectés
+
+Après l’analyse des **10 liens présentant les scores d’anomalie les plus élevés**, notre modèle **GAT + Anomaly-Guided** a mis en évidence plusieurs connexions **hautement improbables** du point de vue géographique et structurel.
+
+## Top 10 liens les plus suspects (scores d’anomalie les plus élevés)
+
+| Rang | Source (Pays) | Population source | Destination (Pays) | Population destination | Score | Distance |
+|-----:|----------------|------------------:|--------------------|-----------------------:|------:|---------:|
+| #1 | Barrow *(Australie)* | 10 000 | Cape Lisburne *(USA)* | 10 000 | **0.9970** | 4.68 |
+| #2 | Barrow *(Australie)* | 10 000 | Kivalina *(USA)* | 10 000 | **0.9970** | 4.64 |
+| #3 | Buckland *(USA)* | 10 000 | Barrow *(Australie)* | 10 000 | **0.9964** | 4.57 |
+| #4 | Port Macquarie *(Australie)* | 45 692 | Wewak *(Canada)* | 18 230 | **0.9942** | 3.96 |
+| #5 | Sitka *(USA)* | 10 000 | Edna Bay *(Australie)* | 10 000 | **0.9937** | 4.08 |
+| #6 | Montréal *(Canada)* | 10 000 | Casablanca *(Australie)* | 3 144 909 | **0.9934** | 3.46 |
+| #7 | Barrow *(Australie)* | 10 000 | Fairbanks *(USA)* | 32 325 | **0.9932** | 4.45 |
+| #8 | Northway *(USA)* | 10 000 | Denham *(Australie)* | 10 000 | **0.9930** | 4.02 |
+| #9 | Craig Cove *(Vanuatu)* | 10 000 | Sara *(USA)* | 10 000 | **0.9927** | 4.03 |
+| #10 | Nadi *(Fidji)* | 42 284 | Honolulu *(USA)* | 371 657 | **0.9927** | 3.72 |
+
+
+---
+
+### Analyse des Liens Détectés
+
+Parmi les liens détectés, on remarque d’abord que la **majorité des populations sources sont fixées à 10 000 habitants**, 
+ce qui indique que certaines données du graphe sont **artificielles**.
+
+- **Liens #1, #2, #3 et #7 — Barrow (Australie) → USA :**  
+  Ces liaisons sont incohérentes. Selon le dataset, *Barrow* serait une ville australienne, mais d’après les sources réelles, Barrow correspond à **Utqiaġvik**, une ville située en **Alaska (USA)**.  
+  Il existe effectivement des vols reliant Barrow à d’autres villes américaines comme Fairbanks.  
+  Cette erreur révèle une **mauvaise labellisation du pays** entre l’Australie et les États-Unis.
+
+- **Lien #4 — Port Macquarie (Australie) → Wewak (Canada) :**  
+  Ce lien est géographiquement impossible, reliant deux petites villes très éloignées.  
+  Après vérification, Wewak se situe en **Papouasie-Nouvelle-Guinée**, et non au Canada.  
+  Le modèle a ainsi permis de détecter une **erreur de label** entre pays voisins.
+
+- **Lien #5 — Sitka (USA) → Edna Bay (Australie) :**  
+  Les deux villes se trouvent en **Alaska (USA)**, et non en Australie.  
+  Ce cas illustre une **encore une erreur de pays dans les données** du graphe.
+
+- **Lien #8 — Northway (USA) → Denham (Australie) :**  
+  Aucun vol commercial n’existe entre ces deux lieux isolés, faiblement peuplés et très lointains.  
+  Le lien ne provient pas d’une erreur de pays, mais d’une **connexion qui ne devrait pas exister**
+
+- **Lien #9 — Craig Cove (Vanuatu) → Sara (USA) :**  
+  La ville *Sara* est introuvable sur internet.  
+  Selon ses coordonnées lon et lan des données, elle se situerait en Alaska.  
+  Le modèle a ainsi identifié un **lien qui est anormal entre ces deux endroits**.
+
+- **Lien #10 — Nadi (Fidji) → Honolulu (USA) :**  
+  Ce lien correspond à un **vol commercial réel**, opéré de manière saisonnière entre les Fidji et Hawaï.  
+  Bien que valide, il a été détecté comme atypique du fait de la **distance élevée** et de l’appartenance à **deux pays différents**.  
+  Il s’agit du **seul lien réel** parmi les dix premiers détectés.
+
+---
+
+### Conclusion
+
+Cette analyse montre que le modèle **GAT + Anomaly-Guided** a permis de :
+- trouver des **erreurs de pays** (labels incohérents entre Alaska et Australie),  
+- identifier des **connexions géographiquement improbables**,  
+- et de repérer également des liaisons bien réelles, mais jugées anormales en raison de leur caractère atypique par rapport aux routes aériennes les plus fréquentes (ex. Fidji ↔ Hawaï).  
+
 
 ## 5. Conclusion Générale
 
