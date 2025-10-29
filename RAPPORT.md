@@ -53,7 +53,7 @@ Chaque nœud représente un aéroport et contient ses coordonnées géographique
 | Nombre de nœuds (aéroports) | **3 363** |
 | Nombre d’arêtes (connexions) | **13 547** |
 
-Ces valeurs indiquent un graphe de grande taille, où chaque aéroport est un nœud et chaque liaison (vol ou connexion) est une arête.  
+Ces valeurs indiquent un graphe de grande taille, où chaque aéroport est un nœud et chaque liaison (vol) est une arête.  
 L’important nombre de pays (212) montre la forte diversité géographique, mais **impliquera une classification complexe**, car certaines classes (pays) sont très peu représentées.
 
 ---
@@ -68,7 +68,7 @@ L’important nombre de pays (212) montre la forte diversité géographique, mai
 | `country` | object |
 | `city_name` | object |
 
-Les données sont bien structurées : les coordonnées sont numériques, et les pays sont représentés sous forme catégorielle.  
+Les données sont bien structurées : les coordonnées sont numériques, et les pays sont représentés sous forme object.  
 Une vérification manuelle et programmatique a été effectuée, confirmant que **le fichier est complet et qu’aucune donnée manquante n’est présente** (`NaN`, `None` ou valeurs corrompues absentes).  
 Cela garantit un pré-traitement fiable et une intégration directe dans le modèle GNN.
 
@@ -110,7 +110,7 @@ Ces statistiques montrent que :
 - la **distribution des latitudes et longitudes** couvre presque toute la planète, ce qui confirme la nature mondiale du graphe ;
 - la **population** est extrêmement variable : de quelques centaines à plusieurs dizaines de millions d’habitants.
 
-Les données brutes du fichier `airportsAndCoordAndPop.graphml.xml` sont chargées à l'aide de la classe `AirportDataLoader`. Pour chaque nœud, nous extrayons et ingénierions quatre caractéristiques fondamentales :
+Les données brutes du fichier `airportsAndCoordAndPop.graphml.xml` sont chargées à l'aide de la classe `AirportDataLoader`. Pour chaque nœud, nous extrayons et utiliserons quatre caractéristiques fondamentales :
 1.  **Latitude** (normalisée)
 2.  **Longitude** (normalisée)
 3.  **Population Logarithmique** : La population est une caractéristique clé, mais sa distribution est fortement asymétrique (skewed). Nous la transformons donc avec `np.log1p` pour la rendre plus gaussienne, ce qui stabilise l'entraînement des modèles.
@@ -157,7 +157,7 @@ où :
 - $\gamma$ contrôle le poids de cette supervision supplémentaire dans l’entraînement global.
 
 Cette extension — implémentée dans le modèle `ImprovedGATWithAnomalyGuidedLearning` — permet au réseau d’apprendre non seulement à **prédire les attributs des nœuds**, mais aussi à **identifier les connexions improbables**.  
-Elle renforce la robustesse du modèle face aux **incohérences structurelles du graphe** et constitue la base du module de **détection d’anomalies de liens** présenté plus loin dans le rapport.
+Elle renforce la robustesse du modèle face aux **incohérences structurelles du graphe** et constitue la base du module de **détection d’anomalies de liens**.
 
 ### 2.3. Métrique d'Évaluation (Score d'Anomalie)
 
@@ -193,7 +193,7 @@ Ces pondérations équilibrent les erreurs individuelles (nœuds) et les incohé
 
 L’évaluateur `AnomalyEvaluatorWithLinkGuidance` permet ensuite d’identifier :
 - les **nœuds les plus atypiques** selon le score combiné, et  
-- les **10 liens les plus anormaux**, révélant des connexions géographiques ou topologiques inhabituelles.
+- les **10 liens les plus anormaux**, révélant des connexions géographiques inhabituelles.
 
 ---
 
@@ -234,6 +234,12 @@ Nous avons implémenté trois architectures dans `models.py` :
 1.  **`BaselineGCN` (Référence)** : Un GCN simple à 2 couches. Il sert de référence minimale.
 2.  **`AnomalyDetectorGCN` (Référence)** : Un GCN plus profond (3 couches) avec des décodeurs MLP plus complexes (incluant `ReLU` et `Dropout`). Cela teste si une capacité de modèle accrue améliore la détection.
 3.  **`ImprovedGAT` (Notre Proposition)** : Nous avons émis l'hypothèse qu'un mécanisme d'**attention** (GATConv) serait supérieur pour la détection d'anomalies. L'attention permet au modèle de pondérer l'importance des voisins. Un nœud "normal" pourrait ainsi apprendre à *ignorer* l'influence d'un voisin lui-même anormal. Ce modèle inclut également des couches `BatchNorm` pour stabiliser l'entraînement des modèles plus profonds.
+4. **`GAT + Anomaly-Guided` (Amélioration avec cohérence de liens)**  
+   Ce modèle étend le **GAT amélioré** en intégrant un **apprentissage guidé par la structure des liens** du graphe.  
+   L’idée principale est d’exploiter non seulement les propriétés individuelles des nœuds (population, pays, etc.), mais aussi les **relations entre eux** (distance géographique, différence de taille, nombre de flux, etc.).  
+
+   Ce modèle **n’a pas pu être comparé aux autres**, faute de temps pour effectuer les tests nécessaires.
+
 
 ### 3.2. Grid Search (Recherche Systématique)
 
@@ -339,7 +345,50 @@ La visualisation t-SNE est très révélatrice :
 * **Analyse des données** : Le fichier de données attribue au nœud `285` ("Xi An", "CHINA") une population de **10 000**.
 * **Conclusion** : Il s'agit d'une autre **erreur factuelle flagrante**. Xi'an est une métropole de plus de 10 millions d'habitants. Le modèle a appris qu'un nœud avec un tel degré et de telles connexions ne pouvait pas avoir la population d'un petit village, et l'a donc signalé comme une anomalie majeure.
 
+
+Outre ces deux cas emblématiques, le modèle a également repéré plusieurs incohérences majeures, combinant erreurs de population et homonymies géographiques fréquentes.
+
 ---
+
+#### **Anomalie 3 : Frankfurt, GERMANY**
+- **Population observée :** 10 000 habitants  
+- **Population prédite :** 3 883 686 habitants  
+- **Différence :** +3 873 686 (+38 733 %)  
+- **Pays observé :** Germany
+- **Interprétation :** Le modèle a détecté une incohérence majeure entre la densité de connexions et la population observée.  
+  Cette erreur indique une **valeur de population incorrecte** (sous-estimée d’un facteur 300) et une **confusion de pays**
+
+---
+
+#### **Anomalie 4 : Zurich, SWITZERLAND**
+- **Population observée :** 10 000 habitants  
+- **Population prédite :** 993 166 habitants  
+- **Différence :** +983 166 (+9 830 %)  
+- **Pays observé :** Switzerland
+- **Interprétation :** Zurich est une grande ville européenne, mais a été enregistrée avec la population d’une petite localité.  
+  Le modèle a détecté une **erreur manifeste dans la donnée de population**
+
+---
+
+#### **Anomalie 5 : Los Angeles, CHILE**
+- **Population observée :** 3 898 747 habitants  
+- **Population prédite :** 31 491 habitants  
+- **Différence :** −3 867 256 (−99.2 %)  
+- **Pays observé :** Chile
+- **Interprétation :** Il existe effectivement une ville nommée *Los Ángeles* au Chili, mais elle ne dépasse pas **200 000 habitants**.  
+  Le modèle a correctement signalé une **erreur de population surdimensionnée**.
+
+---
+
+#### **Anomalie 6 : Melbourne, USA**
+- **Population observée :** 4 917 750 habitants  
+- **Population prédite :** 27 502 habitants  
+- **Différence :** −4 890 248 (−99.4 %)  
+- **Pays observé :** USA
+- **Interprétation :** Il existe une petite ville nommée *Melbourne* en Floride (USA).  
+  La valeur observée correspond en réalité à la population de **Melbourne (Australie)**.  
+  Le modèle a détecté cette **erreur de transfert de valeur** entre homonymes internationaux.
+
 
 ### 4.5 Analyse des Liens Anormaux Détectés
 
