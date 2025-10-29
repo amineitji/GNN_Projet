@@ -40,6 +40,76 @@ Notre démarche s'articule autour d'une approche de détection d'anomalies non-s
 
 ### 2.1. Pré-traitement et Caractéristiques (Features)
 
+Les données initiales proviennent du fichier `airportsAndCoordAndPop.graphml.xml`, qui décrit un graphe de connectivité mondiale entre aéroports.  
+Chaque nœud représente un aéroport et contient ses coordonnées géographiques, sa population associée et son pays.
+
+---
+
+#### 📊 Statistiques générales
+
+| Élément | Valeur |
+|----------|--------|
+| Nombre de classes (pays) | **212** |
+| Nombre de nœuds (aéroports) | **3 363** |
+| Nombre d’arêtes (connexions) | **13 547** |
+
+Ces valeurs indiquent un graphe de grande taille, où chaque aéroport est un nœud et chaque liaison (vol ou connexion) est une arête.  
+L’important nombre de pays (212) montre la forte diversité géographique, mais **impliquera une classification complexe**, car certaines classes (pays) sont très peu représentées.
+
+---
+
+#### 🧩 Types de données
+
+| Colonne | Type |
+|----------|------|
+| `lon` | float64 |
+| `lat` | float64 |
+| `population` | int64 |
+| `country` | object |
+| `city_name` | object |
+
+Les données sont bien structurées : les coordonnées sont numériques, et les pays sont représentés sous forme catégorielle.  
+Une vérification manuelle et programmatique a été effectuée, confirmant que **le fichier est complet et qu’aucune donnée manquante n’est présente** (`NaN`, `None` ou valeurs corrompues absentes).  
+Cela garantit un pré-traitement fiable et une intégration directe dans le modèle GNN.
+
+---
+
+#### 🌍 Top 10 des pays les plus représentés
+
+| Pays | Nombre d’aéroports |
+|------|--------------------|
+| USA | 650 |
+| CANADA | 243 |
+| AUSTRALIA | 207 |
+| BRAZIL | 105 |
+| CHINA | 93 |
+| PAPUA_NEW_GUINEA | 92 |
+| RUSSIA | 70 |
+| JAPAN | 69 |
+| MEXICO | 59 |
+| ARGENTINA | 57 |
+
+On remarque un **fort déséquilibre de classes** :  
+les **10 premiers pays concentrent à eux seuls près de la moitié des 3 363 aéroports**.  
+Ce déséquilibre rendra la **prédiction du pays plus difficile**, car le modèle aura tendance à favoriser les pays surreprésentés (comme les États-Unis ou le Canada) au détriment des classes rares.  
+Il faudra donc surveiller la performance de classification et le risque de biais vers ces grands pays.
+
+---
+
+#### 📈 Statistiques descriptives des colonnes numériques
+
+| Mesure | Longitude | Latitude | Population |
+|---------|------------|-----------|-------------|
+| **Min** | -179.86 | -54.81 | 637 |
+| **Max** | 179.90 | 78.24 | 22 315 470 |
+| **Moyenne** | 0.70 | 23.02 | 338 078 |
+| **Écart-type** | 96.47 | 29.33 | 1 262 323 |
+| **Médiane (50%)** | 6.11 | 30.12 | 15 061 |
+
+Ces statistiques montrent que :
+- la **distribution des latitudes et longitudes** couvre presque toute la planète, ce qui confirme la nature mondiale du graphe ;
+- la **population** est extrêmement variable : de quelques centaines à plusieurs dizaines de millions d’habitants.
+
 Les données brutes du fichier `airportsAndCoordAndPop.graphml.xml` sont chargées à l'aide de la classe `AirportDataLoader`. Pour chaque nœud, nous extrayons et ingénierions quatre caractéristiques fondamentales :
 1.  **Latitude** (normalisée)
 2.  **Longitude** (normalisée)
@@ -47,6 +117,13 @@ Les données brutes du fichier `airportsAndCoordAndPop.graphml.xml` sont chargé
 4.  **Degré du Nœud** : Le nombre de connexions d'un aéroport, une mesure de centralité fondamentale.
 
 Les caractéristiques de latitude et longitude sont normalisées (Standard Scaler) pour être centrées autour de 0. Les données sont ensuite divisées en ensembles d'entraînement (60%), de validation (20%) et de test (20%).
+---
+
+**En résumé :**  
+Le jeu de données est **complet et cohérent**, mais **fortement déséquilibré** entre les pays et **hétérogène** en termes de valeurs numériques.  
+Ces constats ont guidé la préparation des features et le choix d’une approche robuste basée sur un **GNN (Graph Neural Network)**, capable de tirer parti des relations structurelles entre aéroports pour compenser ces déséquilibres.
+
+
 
 ### 2.2. Une Tâche d'Apprentissage Multi-Objectifs
 
