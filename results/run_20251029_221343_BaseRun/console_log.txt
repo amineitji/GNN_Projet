@@ -1,0 +1,824 @@
+💻 Device: cpu
+
+💾 Résultats sauvegardés dans: results/run_20251029_221343_BaseRun
+🗒️  Log console sauvegardé dans: console_log.txt
+📂 Loading data...
+✅ Loaded: 3363 nodes, 27094 edges, 212 countries
+
+🔧 Calcul des features de connectivité enrichies...
+   ├─ Degré moyen: 8.06
+   ├─ Max degré: 248
+   ├─ Degré pondéré moyen: 13.81
+   ├─ Connexions internationales moyennes: 4.23
+   ├─ Score hub moyen: 0.333
+   └─ Top 5 hubs scores: [0.8125, 0.7963709235191345, 0.7948511242866516, 0.7013109922409058, 0.671501636505127]
+   └─ Densité locale moyenne: 0.493
+
+✅ Features enrichies ajoutées!
+   ├─ Dimension originale: 4
+   ├─ Nouvelles features: 7
+   └─ Dimension finale: 11
+
+============================================================
+🔬 Configuration 'Improved GAT (BaseRun)':
+  - hidden_channels: 64
+  - num_layers: 3
+  - num_heads: 4
+  - train_alpha: 0.6
+============================================================
+
+============================================================
+🚀 Baseline GCN (Ref) (Alpha: 0.6)
+============================================================
+
+📊 Évaluation des scores (sur ensemble test):
+  - Score: combined_score    | Q95: 2.0372 | Q99: 2.4926
+  - Score: population_error  | Q95: 2.8005 | Q99: 3.4922
+  - Score: country_score     | Q95: 0.9995 | Q99: 1.0000
+
+📊 Top 10 Anomalies (basé sur 'combined_score'):
+================================================================================
+
+  #1. Frankfurt, GERMANY
+      Population observée :       10,000 habitants
+      Population prédite  :    5,722,751 habitants
+      Différence          :   +5,712,751 (+57121.8%)
+      Pays observé        : GERMANY
+      Pays prédit         : GERMANY ✅
+      📈 Score Population  : 6.3495
+      🌍 Score Pays        : 0.6648
+      Score d'anomalie    : 4.0756
+
+  #2. Sao Paulo, BRAZIL
+      Population observée :       10,000 habitants
+      Population prédite  :    3,459,975 habitants
+      Différence          :   +3,449,975 (+34496.3%)
+      Pays observé        : BRAZIL
+      Pays prédit         : BRAZIL ✅
+      📈 Score Population  : 5.8463
+      🌍 Score Pays        : 0.4665
+      Score d'anomalie    : 3.6944
+
+  #3. New York, USA
+      Population observée :       10,000 habitants
+      Population prédite  :    2,043,639 habitants
+      Différence          :   +2,033,639 (+20334.4%)
+      Pays observé        : USA
+      Pays prédit         : NETHERLANDS_ANTILLES ❌
+      📈 Score Population  : 5.3198
+      🌍 Score Pays        : 0.9087
+      Score d'anomalie    : 3.5554
+
+  #4. Sydney, CANADA
+      Population observée :    5,231,147 habitants
+      Population prédite  :       25,938 habitants
+      Différence          :   -5,205,208 (-99.5%)
+      Pays observé        : CANADA
+      Pays prédit         : USA ❌
+      📈 Score Population  : 5.3066
+      🌍 Score Pays        : 0.6594
+      Score d'anomalie    : 3.4477
+
+  #5. St Petersburg, RUSSIA
+      Population observée :       10,000 habitants
+      Population prédite  :    2,028,839 habitants
+      Différence          :   +2,018,839 (+20186.4%)
+      Pays observé        : RUSSIA
+      Pays prédit         : RUSSIA ✅
+      📈 Score Population  : 5.3125
+      🌍 Score Pays        : 0.5120
+      Score d'anomalie    : 3.3923
+
+  #6. Zurich, SWITZERLAND
+      Population observée :       10,000 habitants
+      Population prédite  :    1,571,918 habitants
+      Différence          :   +1,561,918 (+15617.6%)
+      Pays observé        : SWITZERLAND
+      Pays prédit         : GERMANY ❌
+      📈 Score Population  : 5.0574
+      🌍 Score Pays        : 0.8481
+      Score d'anomalie    : 3.3737
+
+  #7. Los Angeles, CHILE
+      Population observée :    3,898,747 habitants
+      Population prédite  :       37,837 habitants
+      Différence          :   -3,860,910 (-99.0%)
+      Pays observé        : CHILE
+      Pays prédit         : BRAZIL ❌
+      📈 Score Population  : 4.6351
+      🌍 Score Pays        : 0.9700
+      Score d'anomalie    : 3.1691
+
+  #8. Montreal, CANADA
+      Population observée :       10,000 habitants
+      Population prédite  :    1,057,711 habitants
+      Différence          :   +1,047,711 (+10476.1%)
+      Pays observé        : CANADA
+      Pays prédit         : USA ❌
+      📈 Score Population  : 4.6612
+      🌍 Score Pays        : 0.9015
+      Score d'anomalie    : 3.1573
+
+  #9. Kaduna, NIGERIA
+      Population observée :    1,582,102 habitants
+      Population prédite  :       17,415 habitants
+      Différence          :   -1,564,687 (-98.9%)
+      Pays observé        : NIGERIA
+      Pays prédit         : CANADA ❌
+      📈 Score Population  : 4.5091
+      🌍 Score Pays        : 0.9819
+      Score d'anomalie    : 3.0982
+
+  #10. Dallas/Fort Worth, USA
+      Population observée :       10,000 habitants
+      Population prédite  :    1,602,579 habitants
+      Différence          :   +1,592,579 (+15924.2%)
+      Pays observé        : USA
+      Pays prédit         : USA ✅
+      📈 Score Population  : 5.0767
+      🌍 Score Pays        : 0.0556
+      Score d'anomalie    : 3.0683
+
+================================================================================
+
+============================================================
+🚀 AnomalyDetector GCN (Ref) (Alpha: 0.6)
+============================================================
+
+📊 Évaluation des scores (sur ensemble test):
+  - Score: combined_score    | Q95: 2.0275 | Q99: 2.5849
+  - Score: population_error  | Q95: 2.8374 | Q99: 3.6454
+  - Score: country_score     | Q95: 0.9994 | Q99: 1.0000
+
+📊 Top 10 Anomalies (basé sur 'combined_score'):
+================================================================================
+
+  #1. Frankfurt, GERMANY
+      Population observée :       10,000 habitants
+      Population prédite  :    9,825,301 habitants
+      Différence          :   +9,815,301 (+98143.2%)
+      Pays observé        : GERMANY
+      Pays prédit         : GERMANY ✅
+      📈 Score Population  : 6.8900
+      🌍 Score Pays        : 0.7711
+      Score d'anomalie    : 4.4424
+
+  #2. Xi An, CHINA
+      Population observée :       10,000 habitants
+      Population prédite  :    8,500,503 habitants
+      Différence          :   +8,490,503 (+84896.5%)
+      Pays observé        : CHINA
+      Pays prédit         : CHINA ✅
+      📈 Score Population  : 6.7452
+      🌍 Score Pays        : 0.0049
+      Score d'anomalie    : 4.0491
+
+  #3. Sydney, CANADA
+      Population observée :    5,231,147 habitants
+      Population prédite  :       17,263 habitants
+      Différence          :   -5,213,884 (-99.7%)
+      Pays observé        : CANADA
+      Pays prédit         : USA ❌
+      📈 Score Population  : 5.7138
+      🌍 Score Pays        : 0.6912
+      Score d'anomalie    : 3.7047
+
+  #4. Sao Paulo, BRAZIL
+      Population observée :       10,000 habitants
+      Population prédite  :    3,200,754 habitants
+      Différence          :   +3,190,754 (+31904.3%)
+      Pays observé        : BRAZIL
+      Pays prédit         : BRAZIL ✅
+      📈 Score Population  : 5.7685
+      🌍 Score Pays        : 0.4376
+      Score d'anomalie    : 3.6361
+
+  #5. Zurich, SWITZERLAND
+      Population observée :       10,000 habitants
+      Population prédite  :    2,306,984 habitants
+      Différence          :   +2,296,984 (+22967.5%)
+      Pays observé        : SWITZERLAND
+      Pays prédit         : GERMANY ❌
+      📈 Score Population  : 5.4410
+      🌍 Score Pays        : 0.8358
+      Score d'anomalie    : 3.5989
+
+  #6. New York, USA
+      Population observée :       10,000 habitants
+      Population prédite  :    2,569,896 habitants
+      Différence          :   +2,559,896 (+25596.4%)
+      Pays observé        : USA
+      Pays prédit         : USA ✅
+      📈 Score Population  : 5.5489
+      🌍 Score Pays        : 0.4623
+      Score d'anomalie    : 3.5143
+
+  #7. Dallas/Fort Worth, USA
+      Population observée :       10,000 habitants
+      Population prédite  :    2,413,147 habitants
+      Différence          :   +2,403,147 (+24029.1%)
+      Pays observé        : USA
+      Pays prédit         : USA ✅
+      📈 Score Population  : 5.4860
+      🌍 Score Pays        : 0.2074
+      Score d'anomalie    : 3.3746
+
+  #8. Bandung, INDONESIA
+      Population observée :    2,444,160 habitants
+      Population prédite  :       22,287 habitants
+      Différence          :   -2,421,874 (-99.1%)
+      Pays observé        : INDONESIA
+      Pays prédit         : AUSTRALIA ❌
+      📈 Score Population  : 4.6974
+      🌍 Score Pays        : 0.9660
+      Score d'anomalie    : 3.2048
+
+  #9. Urumqi, CHINA
+      Population observée :       10,000 habitants
+      Population prédite  :    1,190,746 habitants
+      Différence          :   +1,180,746 (+11806.3%)
+      Pays observé        : CHINA
+      Pays prédit         : JAPAN ❌
+      📈 Score Population  : 4.7797
+      🌍 Score Pays        : 0.7313
+      Score d'anomalie    : 3.1603
+
+  #10. Los Angeles, CHILE
+      Population observée :    3,898,747 habitants
+      Population prédite  :       39,207 habitants
+      Différence          :   -3,859,540 (-99.0%)
+      Pays observé        : CHILE
+      Pays prédit         : BRAZIL ❌
+      📈 Score Population  : 4.5995
+      🌍 Score Pays        : 0.9681
+      Score d'anomalie    : 3.1469
+
+================================================================================
+
+============================================================
+🚀 Improved GAT (BaseRun) (Alpha: 0.6)
+============================================================
+
+⏹️  Early stopping at epoch 31
+
+📊 Évaluation des scores (sur ensemble test):
+  - Score: combined_score    | Q95: 2.7147 | Q99: 3.5205
+  - Score: population_error  | Q95: 3.8590 | Q99: 5.2040
+  - Score: country_score     | Q95: 1.0000 | Q99: 1.0000
+
+📊 Top 10 Anomalies (basé sur 'combined_score'):
+================================================================================
+
+  #1. Kaduna, NIGERIA
+      Population observée :    1,582,102 habitants
+      Population prédite  :        3,536 habitants
+      Différence          :   -1,578,566 (-99.8%)
+      Pays observé        : NIGERIA
+      Pays prédit         : INDONESIA ❌
+      📈 Score Population  : 6.1031
+      🌍 Score Pays        : 0.9783
+      Score d'anomalie    : 4.0532
+
+  #2. Ranchi, INDIA
+      Population observée :    1,120,374 habitants
+      Population prédite  :        2,623 habitants
+      Différence          :   -1,117,751 (-99.8%)
+      Pays observé        : INDIA
+      Pays prédit         : INDONESIA ❌
+      📈 Score Population  : 6.0568
+      🌍 Score Pays        : 0.9676
+      Score d'anomalie    : 4.0211
+
+  #3. Maracay, VENEZUELA
+      Population observée :    1,754,256 habitants
+      Population prédite  :        5,370 habitants
+      Différence          :   -1,748,886 (-99.7%)
+      Pays observé        : VENEZUELA
+      Pays prédit         : INDONESIA ❌
+      📈 Score Population  : 5.7887
+      🌍 Score Pays        : 0.9898
+      Score d'anomalie    : 3.8692
+
+  #4. Sydney, CANADA
+      Population observée :    5,231,147 habitants
+      Population prédite  :       17,743 habitants
+      Différence          :   -5,213,404 (-99.7%)
+      Pays observé        : CANADA
+      Pays prédit         : CHINA ❌
+      📈 Score Population  : 5.6863
+      🌍 Score Pays        : 1.0000
+      Score d'anomalie    : 3.8118
+
+  #5. Nefteyugansk, RUSSIA
+      Population observée :      112,632 habitants
+      Population prédite  :          400 habitants
+      Différence          :     -112,232 (-99.6%)
+      Pays observé        : RUSSIA
+      Pays prédit         : INDONESIA ❌
+      📈 Score Population  : 5.6381
+      🌍 Score Pays        : 0.9815
+      Score d'anomalie    : 3.7755
+
+  #6. Sydney, AUSTRALIA
+      Population observée :    5,231,147 habitants
+      Population prédite  :       20,682 habitants
+      Différence          :   -5,210,465 (-99.6%)
+      Pays observé        : AUSTRALIA
+      Pays prédit         : CHINA ❌
+      📈 Score Population  : 5.5331
+      🌍 Score Pays        : 1.0000
+      Score d'anomalie    : 3.7198
+
+  #7. Lagos, NIGERIA
+      Population observée :   15,388,000 habitants
+      Population prédite  :       69,780 habitants
+      Différence          :  -15,318,220 (-99.5%)
+      Pays observé        : NIGERIA
+      Pays prédit         : ITALY ❌
+      📈 Score Population  : 5.3960
+      🌍 Score Pays        : 0.9888
+      Score d'anomalie    : 3.6331
+
+  #8. Tokyo, JAPAN
+      Population observée :    8,336,599 habitants
+      Population prédite  :       40,326 habitants
+      Différence          :   -8,296,273 (-99.5%)
+      Pays observé        : JAPAN
+      Pays prédit         : CHINA ❌
+      📈 Score Population  : 5.3314
+      🌍 Score Pays        : 0.9989
+      Score d'anomalie    : 3.5984
+
+  #9. Taipei, TAIWAN
+      Population observée :    7,871,900 habitants
+      Population prédite  :       38,677 habitants
+      Différence          :   -7,833,224 (-99.5%)
+      Pays observé        : TAIWAN
+      Pays prédit         : ITALY ❌
+      📈 Score Population  : 5.3158
+      🌍 Score Pays        : 0.9999
+      Score d'anomalie    : 3.5894
+
+  #10. Bandung, INDONESIA
+      Population observée :    2,444,160 habitants
+      Population prédite  :       10,894 habitants
+      Différence          :   -2,433,266 (-99.6%)
+      Pays observé        : INDONESIA
+      Pays prédit         : INDONESIA ✅
+      📈 Score Population  : 5.4131
+      🌍 Score Pays        : 0.8238
+      Score d'anomalie    : 3.5774
+
+================================================================================
+
+============================================================
+🚀 ANOMALY-GUIDED LEARNING (GAT + Link Detection)
+============================================================
+
+🔍 Analyse des liens suspects (distance améliorée)...
+   ├─ Liens très suspects (score > 0.8): 1364
+   ├─ Liens suspects (score 0.5-0.8): 2774
+   ├─ Liens potentiellement suspects (0.2-0.5): 8736
+   ├─ Liens normaux (< 0.2): 14220
+   └─ Score moyen: 0.2785
+   └─ Batch préparé: 666 normaux, 1000 suspects, 334 négatifs
+
+⏹️  Early stopping at epoch 120
+
+📊 Évaluation des scores:
+  - Score: combined_score    | Q95: 1.6957 | Q99: 2.1431
+  - Score: population_error  | Q95: 2.6352 | Q99: 3.6727
+  - Score: country_score     | Q95: 0.9994 | Q99: 0.9999
+  - Score: link_score        | Q95: 0.9134 | Q99: 0.9625
+
+📊 Top 10 Anomalies de Nœuds (guidé par liens):
+================================================================================
+
+  #1. Xi An, CHINA
+      Population observée :       10,000 habitants
+      Population prédite  :    1,682,135 habitants
+      Différence          :   +1,672,135 (+16719.7%)
+      Pays observé        : CHINA
+      Pays prédit         : CHINA ✅
+      🔗 Score liens      : 0.4331
+      Score d'anomalie    : 2.6665
+
+  #2. Sydney, CANADA
+      Population observée :    5,231,147 habitants
+      Population prédite  :       60,313 habitants
+      Différence          :   -5,170,834 (-98.8%)
+      Pays observé        : CANADA
+      Pays prédit         : USA ❌
+      🔗 Score liens      : 0.4584
+      Score d'anomalie    : 2.5180
+
+  #3. Taipei, TAIWAN
+      Population observée :    7,871,900 habitants
+      Population prédite  :      110,044 habitants
+      Différence          :   -7,761,856 (-98.6%)
+      Pays observé        : TAIWAN
+      Pays prédit         : JAPAN ❌
+      🔗 Score liens      : 0.5786
+      Score d'anomalie    : 2.5038
+
+  #4. Karachi, PAKISTAN
+      Population observée :   11,624,219 habitants
+      Population prédite  :      186,719 habitants
+      Différence          :  -11,437,500 (-98.4%)
+      Pays observé        : PAKISTAN
+      Pays prédit         : RUSSIA ❌
+      🔗 Score liens      : 0.5094
+      Score d'anomalie    : 2.4528
+
+  #5. Bandung, INDONESIA
+      Population observée :    2,444,160 habitants
+      Population prédite  :       35,238 habitants
+      Différence          :   -2,408,922 (-98.6%)
+      Pays observé        : INDONESIA
+      Pays prédit         : SOUTH_AFRICA ❌
+      🔗 Score liens      : 0.3136
+      Score d'anomalie    : 2.4475
+
+  #6. Thessaloniki, GREECE
+      Population observée :       10,000 habitants
+      Population prédite  :      555,680 habitants
+      Différence          :     +545,680 (+5456.3%)
+      Pays observé        : GREECE
+      Pays prédit         : ITALY ❌
+      🔗 Score liens      : 0.6158
+      Score d'anomalie    : 2.4215
+
+  #7. Riyadh, SAUDI_ARABIA
+      Population observée :    4,205,961 habitants
+      Population prédite  :       75,709 habitants
+      Différence          :   -4,130,252 (-98.2%)
+      Pays observé        : SAUDI_ARABIA
+      Pays prédit         : SAUDI_ARABIA ✅
+      🔗 Score liens      : 0.5675
+      Score d'anomalie    : 2.3671
+
+  #8. Caracas, VENEZUELA
+      Population observée :    3,000,000 habitants
+      Population prédite  :       60,240 habitants
+      Différence          :   -2,939,760 (-98.0%)
+      Pays observé        : VENEZUELA
+      Pays prédit         : BRAZIL ❌
+      🔗 Score liens      : 0.6334
+      Score d'anomalie    : 2.3366
+
+  #9. Kaduna, NIGERIA
+      Population observée :    1,582,102 habitants
+      Population prédite  :       33,059 habitants
+      Différence          :   -1,549,043 (-97.9%)
+      Pays observé        : NIGERIA
+      Pays prédit         : GERMANY ❌
+      🔗 Score liens      : 0.6490
+      Score d'anomalie    : 2.3212
+
+  #10. Mandalay, MYANMAR
+      Population observée :    1,208,099 habitants
+      Population prédite  :       31,637 habitants
+      Différence          :   -1,176,462 (-97.4%)
+      Pays observé        : MYANMAR
+      Pays prédit         : INDONESIA ❌
+      🔗 Score liens      : 0.8308
+      Score d'anomalie    : 2.2826
+
+================================================================================
+
+================================================================================
+🔍 RAPPORT D'ANALYSE DES LIENS SUSPECTS
+================================================================================
+   ✅ Trouvé 100 paires uniques
+
+
+📊 Statistiques globales:
+   ├─ Liens suspects détectés: 100
+   ├─ Petite → Grande ville: 15
+   ├─ Entre pays différents: 99
+   ├─ Longue distance: 100
+   ├─ Ratio population moyen: 39.5x
+   └─ Distance géographique moyenne: 3.462
+
+🌍 Top 5 pays sources de liens suspects:
+   ├─ AUSTRALIA: 38 liens
+   ├─ USA: 23 liens
+   ├─ RUSSIA: 4 liens
+   ├─ PAPUA_NEW_GUINEA: 4 liens
+   ├─ VANUATU: 4 liens
+   ✅ Trouvé 10 paires uniques
+
+
+🔝 Top 10 liens les plus suspects:
+================================================================================
+
+#1. Score: 0.9856
+   Source: Ottawa, AUSTRALIA (812,129 hab.)
+   Destin: Edmonton, CANADA (1,010,899 hab.)
+   Raisons: Pays différents, Distance: 3.77
+
+#2. Score: 0.9848
+   Source: Jersey, AUSTRALIA (10,000 hab.)
+   Destin: Kirkwall, UNITED_KINGDOM (10,000 hab.)
+   Raisons: Pays différents, Distance: 3.57
+
+#3. Score: 0.9848
+   Source: Honolulu, USA (371,657 hab.)
+   Destin: Auckland, NEW_ZEALAND (417,910 hab.)
+   Raisons: Pays différents, Distance: 3.98
+
+#4. Score: 0.9836
+   Source: Ottawa, AUSTRALIA (812,129 hab.)
+   Destin: Winnipeg, CANADA (749,607 hab.)
+   Raisons: Pays différents, Distance: 3.65
+
+#5. Score: 0.9834
+   Source: Barrow, AUSTRALIA (10,000 hab.)
+   Destin: Cape Lisburne, USA (10,000 hab.)
+   Raisons: Pays différents, Distance: 4.68
+
+#6. Score: 0.9831
+   Source: Barrow, AUSTRALIA (10,000 hab.)
+   Destin: Kivalina, USA (10,000 hab.)
+   Raisons: Pays différents, Distance: 4.64
+
+#7. Score: 0.9829
+   Source: Port Macquarie, AUSTRALIA (45,692 hab.)
+   Destin: Wewak, CANADA (18,230 hab.)
+   Raisons: Pays différents, Distance: 3.96
+
+#8. Score: 0.9827
+   Source: Buckland, USA (10,000 hab.)
+   Destin: Barrow, AUSTRALIA (10,000 hab.)
+   Raisons: Pays différents, Distance: 4.57
+
+#9. Score: 0.9822
+   Source: Ottawa, AUSTRALIA (812,129 hab.)
+   Destin: Quebec, CANADA (10,000 hab.)
+   Raisons: Pays différents, Distance: 3.39
+
+#10. Score: 0.9821
+   Source: Barrow, AUSTRALIA (10,000 hab.)
+   Destin: Anchorage, USA (291,247 hab.)
+   Raisons: Pays différents, Distance: 4.37
+
+================================================================================
+
+✅ Anomaly-Guided terminé avec succès!
+
+============================================================
+🔬 ABLATION STUDY sur 'Improved GAT (BaseRun)'
+============================================================
+
+--- Running Ablation: Improved GAT (BaseRun) (Pop-Only) ---
+
+============================================================
+🚀 Improved GAT (BaseRun) (Pop-Only) (Alpha: 1.0)
+============================================================
+
+📊 Évaluation des scores (sur ensemble test):
+  - Score: combined_score    | Q95: 1.9001 | Q99: 2.7121
+  - Score: population_error  | Q95: 2.5034 | Q99: 3.8566
+  - Score: country_score     | Q95: 0.9953 | Q99: 0.9953
+
+📊 Top 10 Anomalies (basé sur 'combined_score'):
+================================================================================
+
+  #1. Sydney, AUSTRALIA
+      Population observée :    5,231,147 habitants
+      Population prédite  :       31,410 habitants
+      Différence          :   -5,199,738 (-99.4%)
+      Pays observé        : AUSTRALIA
+      Pays prédit         : VANUATU ❌
+      📈 Score Population  : 5.1152
+      🌍 Score Pays        : 0.9953
+      Score d'anomalie    : 3.4673
+
+  #2. Melbourne, AUSTRALIA
+      Population observée :    4,917,750 habitants
+      Population prédite  :       31,558 habitants
+      Différence          :   -4,886,192 (-99.4%)
+      Pays observé        : AUSTRALIA
+      Pays prédit         : VANUATU ❌
+      📈 Score Population  : 5.0487
+      🌍 Score Pays        : 0.9953
+      Score d'anomalie    : 3.4274
+
+  #3. Xi An, CHINA
+      Population observée :       10,000 habitants
+      Population prédite  :    1,036,001 habitants
+      Différence          :   +1,026,001 (+10259.0%)
+      Pays observé        : CHINA
+      Pays prédit         : VANUATU ❌
+      📈 Score Population  : 4.6404
+      🌍 Score Pays        : 0.9953
+      Score d'anomalie    : 3.1824
+
+  #4. Bahrain, BAHRAIN
+      Population observée :       10,000 habitants
+      Population prédite  :    1,010,033 habitants
+      Différence          :   +1,000,033 (+9999.3%)
+      Pays observé        : BAHRAIN
+      Pays prédit         : VANUATU ❌
+      📈 Score Population  : 4.6151
+      🌍 Score Pays        : 0.9953
+      Score d'anomalie    : 3.1671
+
+  #5. Kuwait, KUWAIT
+      Population observée :       10,000 habitants
+      Population prédite  :      980,680 habitants
+      Différence          :     +970,680 (+9705.8%)
+      Pays observé        : KUWAIT
+      Pays prédit         : VANUATU ❌
+      📈 Score Population  : 4.5856
+      🌍 Score Pays        : 0.9953
+      Score d'anomalie    : 3.1495
+
+  #6. Malta, MALTA
+      Population observée :       10,000 habitants
+      Population prédite  :      913,468 habitants
+      Différence          :     +903,468 (+9033.8%)
+      Pays observé        : MALTA
+      Pays prédit         : VANUATU ❌
+      📈 Score Population  : 4.5146
+      🌍 Score Pays        : 0.9953
+      Score d'anomalie    : 3.1069
+
+  #7. Taipei, TAIWAN
+      Population observée :    7,871,900 habitants
+      Population prédite  :       93,631 habitants
+      Différence          :   -7,778,270 (-98.8%)
+      Pays observé        : TAIWAN
+      Pays prédit         : VANUATU ❌
+      📈 Score Population  : 4.4317
+      🌍 Score Pays        : 0.9953
+      Score d'anomalie    : 3.0571
+
+  #8. Brisbane, AUSTRALIA
+      Population observée :    2,582,007 habitants
+      Population prédite  :       31,563 habitants
+      Différence          :   -2,550,444 (-98.8%)
+      Pays observé        : AUSTRALIA
+      Pays prédit         : VANUATU ❌
+      📈 Score Population  : 4.4043
+      🌍 Score Pays        : 0.9953
+      Score d'anomalie    : 3.0407
+
+  #9. Perth, AUSTRALIA
+      Population observée :    2,192,229 habitants
+      Population prédite  :       35,559 habitants
+      Différence          :   -2,156,670 (-98.4%)
+      Pays observé        : AUSTRALIA
+      Pays prédit         : VANUATU ❌
+      📈 Score Population  : 4.1215
+      🌍 Score Pays        : 0.9953
+      Score d'anomalie    : 2.8710
+
+  #10. Curitiba, BRAZIL
+      Population observée :    1,948,626 habitants
+      Population prédite  :       33,516 habitants
+      Différence          :   -1,915,110 (-98.3%)
+      Pays observé        : BRAZIL
+      Pays prédit         : VANUATU ❌
+      📈 Score Population  : 4.0628
+      🌍 Score Pays        : 0.9953
+      Score d'anomalie    : 2.8358
+
+================================================================================
+
+--- Running Ablation: Improved GAT (BaseRun) (Country-Only) ---
+
+============================================================
+🚀 Improved GAT (BaseRun) (Country-Only) (Alpha: 0.0)
+============================================================
+
+⏹️  Early stopping at epoch 25
+
+📊 Évaluation des scores (sur ensemble test):
+  - Score: combined_score    | Q95: 8.8700 | Q99: 9.5456
+  - Score: population_error  | Q95: 14.1183 | Q99: 15.2447
+  - Score: country_score     | Q95: 0.9989 | Q99: 0.9998
+
+📊 Top 10 Anomalies (basé sur 'combined_score'):
+================================================================================
+
+  #1. Shanghai, CHINA
+      Population observée :   22,315,474 habitants
+      Population prédite  :            0 habitants
+      Différence          :  -22,315,474 (-100.0%)
+      Pays observé        : CHINA
+      Pays prédit         : LIBERIA ❌
+      📈 Score Population  : 16.6838
+      🌍 Score Pays        : 0.9957
+      Score d'anomalie    : 10.4086
+
+  #2. Beijing, CHINA
+      Population observée :   18,960,744 habitants
+      Population prédite  :            0 habitants
+      Différence          :  -18,960,744 (-100.0%)
+      Pays observé        : CHINA
+      Pays prédit         : LIBERIA ❌
+      📈 Score Population  : 16.5139
+      🌍 Score Pays        : 0.9951
+      Score d'anomalie    : 10.3064
+
+  #3. Shenzhen, CHINA
+      Population observée :   17,494,398 habitants
+      Population prédite  :            0 habitants
+      Différence          :  -17,494,398 (-100.0%)
+      Pays observé        : CHINA
+      Pays prédit         : SAINT-PIERRE_AND_MIQUELON#ST-PIERRE_AND_MIQUELON ❌
+      📈 Score Population  : 16.3699
+      🌍 Score Pays        : 0.9967
+      Score d'anomalie    : 10.2206
+
+  #4. Guangzhou, CHINA
+      Population observée :   16,096,724 habitants
+      Population prédite  :            0 habitants
+      Différence          :  -16,096,724 (-100.0%)
+      Pays observé        : CHINA
+      Pays prédit         : SAINT-PIERRE_AND_MIQUELON#ST-PIERRE_AND_MIQUELON ❌
+      📈 Score Population  : 16.3514
+      🌍 Score Pays        : 0.9965
+      Score d'anomalie    : 10.2094
+
+  #5. Lagos, NIGERIA
+      Population observée :   15,388,000 habitants
+      Population prédite  :            0 habitants
+      Différence          :  -15,388,000 (-100.0%)
+      Pays observé        : NIGERIA
+      Pays prédit         : LIBERIA ❌
+      📈 Score Population  : 16.2950
+      🌍 Score Pays        : 0.9896
+      Score d'anomalie    : 10.1728
+
+  #6. Istanbul, TURKEY
+      Population observée :   14,804,116 habitants
+      Population prédite  :            0 habitants
+      Différence          :  -14,804,116 (-100.0%)
+      Pays observé        : TURKEY
+      Pays prédit         : LIBERIA ❌
+      📈 Score Population  : 16.2893
+      🌍 Score Pays        : 0.9980
+      Score d'anomalie    : 10.1728
+
+  #7. Chengdu, CHINA
+      Population observée :   13,568,357 habitants
+      Population prédite  :            0 habitants
+      Différence          :  -13,568,357 (-100.0%)
+      Pays observé        : CHINA
+      Pays prédit         : SAINT-PIERRE_AND_MIQUELON#ST-PIERRE_AND_MIQUELON ❌
+      📈 Score Population  : 16.1657
+      🌍 Score Pays        : 0.9956
+      Score d'anomalie    : 10.0977
+
+  #8. Mexico City, M&Eacute;XICO#MEXICO
+      Population observée :   12,294,193 habitants
+      Population prédite  :            0 habitants
+      Différence          :  -12,294,193 (-100.0%)
+      Pays observé        : M&Eacute;XICO#MEXICO
+      Pays prédit         : LIBERIA ❌
+      📈 Score Population  : 16.1268
+      🌍 Score Pays        : 0.9994
+      Score d'anomalie    : 10.0758
+
+  #9. Mumbai, INDIA
+      Population observée :   12,691,836 habitants
+      Population prédite  :            0 habitants
+      Différence          :  -12,691,836 (-100.0%)
+      Pays observé        : INDIA
+      Pays prédit         : LIBERIA ❌
+      📈 Score Population  : 16.0867
+      🌍 Score Pays        : 0.9967
+      Score d'anomalie    : 10.0507
+
+  #10. Karachi, PAKISTAN
+      Population observée :   11,624,219 habitants
+      Population prédite  :            0 habitants
+      Différence          :  -11,624,219 (-100.0%)
+      Pays observé        : PAKISTAN
+      Pays prédit         : LIBERIA ❌
+      📈 Score Population  : 16.0602
+      🌍 Score Pays        : 0.9967
+      Score d'anomalie    : 10.0348
+
+================================================================================
+
+============================================================
+📊 RESULTS COMPARISON
+============================================================
+                                model  train_alpha     score_type  mean_score  std_score    q95    q99
+                 GAT + Anomaly-Guided       0.5000 combined_score      0.6700     0.4656 1.6957 2.1431
+    Improved GAT (BaseRun) (Pop-Only)       1.0000 combined_score      0.8575     0.4966 1.9001 2.7121
+            AnomalyDetector GCN (Ref)       0.6000 combined_score      1.0218     0.5466 2.0275 2.5849
+                   Baseline GCN (Ref)       0.6000 combined_score      1.0641     0.5019 2.0372 2.4926
+               Improved GAT (BaseRun)       0.6000 combined_score      1.4115     0.6805 2.7147 3.5205
+Improved GAT (BaseRun) (Country-Only)       0.0000 combined_score      6.7118     1.1062 8.8700 9.5456
+
+💾 Résultats sauvegardés: results/run_20251029_221343_BaseRun/comparison_full_results.csv
+
+📊 Generating visualizations...
+✅ Graphique de comparaison principal sauvegardé sur comparison_01_main_models.png
+✅ Graphique d'ablation study sauvegardé sur comparison_02_ablation_study.png
+
+✅ Done! Check 'results/run_20251029_221343_BaseRun' for results
