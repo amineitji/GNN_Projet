@@ -6,10 +6,6 @@ import numpy as np
 
 
 class TrainerWithAnomalyGuidedLearning:
-    """
-    ⭐ Trainer avec détection améliorée prenant mieux en compte la distance géographique
-    VERSION 2.0 - Distance + Direction Est-Ouest
-    """
 
     def __init__(self, model, data, device='cpu'):
         self.model = model.to(device)
@@ -24,23 +20,12 @@ class TrainerWithAnomalyGuidedLearning:
         }
 
     def identify_suspicious_links(self):
-        """
-        ⭐ AMÉLIORÉ : Détection avec distance géographique mieux prise en compte
-
-        Nouveautés :
-        1. Distance toujours prise en compte (pas seulement si pays différents)
-        2. Poids augmenté : 35% pour distance (vs 25% avant)
-        3. Distinction lat_diff vs lon_diff (axe Nord-Sud vs Est-Ouest)
-        4. Seuil abaissé : 0.1 au lieu de 0.3
-        """
         edge_index = self.data.edge_index
         node_features = self.data.x
         populations = self.data.population
         countries = self.data.country_labels
 
         suspicious_scores = []
-
-        print("\n🔍 Analyse des liens suspects (distance améliorée)...")
 
         for i in range(edge_index.size(1)):
             src = edge_index[0, i].item()
@@ -53,51 +38,36 @@ class TrainerWithAnomalyGuidedLearning:
 
             pop_ratio = (pop_dst + 1) / (pop_src + 1)
 
-            # Distance géographique
             geo_dist = torch.sqrt(
                 (node_features[src, 0] - node_features[dst, 0]) ** 2 +
                 (node_features[src, 1] - node_features[dst, 1]) ** 2
             ).item()
 
-            # ⭐ NOUVEAU : Différences lat/lon séparées
             lat_diff = abs(node_features[src, 1].item() - node_features[dst, 1].item())
             lon_diff = abs(node_features[src, 0].item() - node_features[dst, 0].item())
 
             diff_country = 1 if country_src != country_dst else 0
             small_to_large = 1 if pop_src < pop_dst else 0
 
-            # ═════════════════════════════════════════
-            # 🎯 SCORING AMÉLIORÉ
-            # ═════════════════════════════════════════
-
             suspicion_score = 0.0
 
-            # CRITÈRE 1 : Petite → Grande + Pays différents (40%)
             if small_to_large and diff_country:
                 ratio_score = min(pop_ratio / 100.0, 1.0)
                 suspicion_score += 0.4 * ratio_score
 
-            # CRITÈRE 2 : ⭐ DISTANCE (35% - AMÉLIORÉ)
-            if geo_dist > 0.1:  # Seuil abaissé
+            if geo_dist > 0.1:
                 distance_score = min(geo_dist / 0.5, 1.0)
-
                 if diff_country:
-                    # Distance + pays différents = très suspect
                     suspicion_score += 0.35 * distance_score
                 else:
-                    # Distance importante même pays = suspect quand même
                     suspicion_score += 0.20 * distance_score
 
-            # CRITÈRE 3 : ⭐ NOUVEAU : Direction Est-Ouest (15%)
-            # Grande différence longitude = suspect (ex: Europe → Asie)
             if lon_diff > 0.3:
                 suspicion_score += 0.15 * min(lon_diff / 0.5, 1.0)
 
-            # CRITÈRE 4 : Ratio population extrême (10%)
             if pop_ratio > 50:
                 suspicion_score += 0.10 * min(pop_ratio / 100.0, 1.0)
 
-            # BONUS : Tous critères réunis (+30%)
             if small_to_large and diff_country and geo_dist > 0.4:
                 suspicion_score = min(suspicion_score * 1.3, 1.0)
 
@@ -105,27 +75,11 @@ class TrainerWithAnomalyGuidedLearning:
 
         suspicious_scores = torch.tensor(suspicious_scores, device=self.device)
 
-        # Statistiques
-        very_suspicious = (suspicious_scores > 0.8).sum().item()
-        somewhat_suspicious = ((suspicious_scores > 0.5) & (suspicious_scores <= 0.8)).sum().item()
-        potentially_suspicious = ((suspicious_scores > 0.2) & (suspicious_scores <= 0.5)).sum().item()
-        normal = (suspicious_scores <= 0.2).sum().item()
-
-        print(f"   ├─ Liens très suspects (score > 0.8): {very_suspicious}")
-        print(f"   ├─ Liens suspects (score 0.5-0.8): {somewhat_suspicious}")
-        print(f"   ├─ Liens potentiellement suspects (0.2-0.5): {potentially_suspicious}")
-        print(f"   ├─ Liens normaux (< 0.2): {normal}")
-        print(f"   └─ Score moyen: {suspicious_scores.mean().item():.4f}")
-
         return suspicious_scores
 
     def prepare_link_batches(self, num_samples=2000):
-        """
-        Prépare les lots de liens pour l'entraînement
-        """
         suspicion_scores = self.identify_suspicious_links()
 
-        # Seuils pour séparer normaux / suspects
         normal_threshold = torch.quantile(suspicion_scores, 0.4)
         suspect_threshold = torch.quantile(suspicion_scores, 0.85)
 
@@ -135,7 +89,6 @@ class TrainerWithAnomalyGuidedLearning:
         normal_indices = torch.where(normal_mask)[0]
         suspect_indices = torch.where(suspect_mask)[0]
 
-        # Échantillonnage
         num_suspect = min(num_samples // 2, len(suspect_indices))
         num_normal = min(num_samples // 3, len(normal_indices))
         num_neg = num_samples - num_normal - num_suspect
@@ -157,10 +110,7 @@ class TrainerWithAnomalyGuidedLearning:
         self.neg_edges = neg_edges
         self.suspicion_scores = suspicion_scores
 
-        print(f"   └─ Batch préparé: {len(normal_sample)} normaux, {len(suspect_sample)} suspects, {num_neg} négatifs")
-
     def sample_negative_edges(self, num_samples):
-        """Génère des liens négatifs"""
         if num_samples <= 0:
             return torch.tensor([], dtype=torch.long, device=self.device).reshape(2, 0)
 
@@ -185,24 +135,20 @@ class TrainerWithAnomalyGuidedLearning:
         return torch.tensor(neg_edges, device=self.device).t()
 
     def train_epoch(self, optimizer, alpha=0.4, beta=0.3, gamma=0.3):
-        """Entraînement d'une époque"""
         self.model.train()
         optimizer.zero_grad()
 
         pop_pred, country_pred, embeddings = self.model(self.data.x, self.data.edge_index)
 
-        # 1. Loss population
         log_pop_true = torch.log1p(self.data.population[self.data.train_mask])
         log_pop_pred = pop_pred[self.data.train_mask].squeeze()
         loss_pop = F.mse_loss(log_pop_pred, log_pop_true)
 
-        # 2. Loss country
         country_true = torch.LongTensor(
             self.data.country_labels[self.data.train_mask.cpu().numpy()]
         ).to(self.device)
         loss_country = F.cross_entropy(country_pred[self.data.train_mask], country_true)
 
-        # 3. Link anomaly loss
         all_src, all_dst, all_labels = [], [], []
 
         if len(self.normal_sample) > 0:
@@ -235,7 +181,6 @@ class TrainerWithAnomalyGuidedLearning:
         else:
             loss_link = torch.tensor(0.0, device=self.device)
 
-        # 4. Loss combinée
         loss = alpha * loss_pop + beta * loss_country + gamma * loss_link
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
@@ -245,7 +190,6 @@ class TrainerWithAnomalyGuidedLearning:
 
     @torch.no_grad()
     def evaluate(self, mask):
-        """Évaluation"""
         self.model.eval()
         pop_pred, country_pred, _ = self.model(self.data.x, self.data.edge_index)
 
@@ -261,7 +205,6 @@ class TrainerWithAnomalyGuidedLearning:
         return mse, acc
 
     def fit(self, epochs=200, lr=0.01, alpha=0.4, beta=0.3, gamma=0.3, patience=30):
-        """Entraînement complet"""
         Path('models').mkdir(exist_ok=True)
         optimizer = torch.optim.Adam(self.model.parameters(), lr=lr, weight_decay=5e-4)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -271,7 +214,7 @@ class TrainerWithAnomalyGuidedLearning:
         best_val_loss = float('inf')
         patience_counter = 0
 
-        pbar = tqdm(range(epochs), desc='Training (Distance Améliorée)')
+        pbar = tqdm(range(epochs), desc='Training')
         for epoch in pbar:
             train_loss = self.train_epoch(optimizer, alpha, beta, gamma)
             val_mse, val_acc = self.evaluate(self.data.val_mask)
@@ -295,7 +238,7 @@ class TrainerWithAnomalyGuidedLearning:
             else:
                 patience_counter += 1
                 if patience_counter >= patience:
-                    print(f"\n⏹️  Early stopping at epoch {epoch}")
+                    print(f"Early stopping at epoch {epoch}")
                     break
 
         self.model.load_state_dict(torch.load('models/best_anomaly_guided.pt'))

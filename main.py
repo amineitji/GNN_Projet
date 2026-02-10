@@ -19,40 +19,35 @@ from src.trainer import Trainer
 from src.evaluator import AnomalyEvaluator
 from src.visualizer import Visualizer
 
-
 from src.connectivity_features import compute_connectivity_features
 from src.models_anomaly_guided import ImprovedGATWithAnomalyGuidedLearning
 from src.trainer_anomaly_guided import TrainerWithAnomalyGuidedLearning
 from src.evaluator_anomaly_guided import AnomalyEvaluatorWithLinkGuidance
 
-# =====================================================================
-# Logger Class (POUR SAUVEGARDER LE LOG CONSOLE)
-# =====================================================================
+
 class Logger(object):
     """
-    Redirige la sortie standard (print) vers un fichier 
+    Redirige la sortie standard (print) vers un fichier
     tout en la conservant dans le terminal.
     """
+
     def __init__(self, filepath, original_stdout):
         self.terminal = original_stdout
-        # 'w' pour écraser le log à chaque nouvelle exécution
         self.log_file = open(filepath, "w", encoding='utf-8')
         self.stdout = original_stdout
 
     def write(self, message):
         self.stdout.write(message)
-        self.log_file.write(message)  
+        self.log_file.write(message)
 
     def flush(self):
-        # Nécessaire pour la compatibilité avec sys.stdout
         self.stdout.flush()
         self.log_file.flush()
-        
+
     def close(self):
         self.log_file.close()
 
 
-# ==================== CONFIGURATION ====================
 DATA_PATH = "data/airportsAndCoordAndPop.graphml.xml"
 EPOCHS = 200
 LEARNING_RATE = 0.01
@@ -73,14 +68,10 @@ GAT_GRID_SEARCH_CONFIG = {
 TRAIN_ALPHAS_GRID = [0.1, 0.3, 0.5, 0.7, 0.9]
 
 
-# =====================================================================
-# FONCTION D'EXPÉRIENCE STANDARD
-# =====================================================================
-
 def run_experiment(model_name, model, data, experiment_alpha=0.6):
     """Lance une expérience standard (sans Anomaly-Guided)"""
     print(f"\n{'=' * 60}")
-    print(f"🚀 {model_name} (Alpha: {experiment_alpha})")
+    print(f"{model_name} (Alpha: {experiment_alpha})")
     print(f"{'=' * 60}")
 
     trainer = Trainer(model, data, DEVICE)
@@ -92,7 +83,7 @@ def run_experiment(model_name, model, data, experiment_alpha=0.6):
     results_list = []
     score_types = ['combined_score', 'population_error', 'country_score']
 
-    print("\n📊 Évaluation des scores (sur ensemble test):")
+    print("\nÉvaluation des scores (sur ensemble test):")
     for score_type in score_types:
         test_scores = all_scores[score_type][data.test_mask.cpu().numpy()]
         results = {
@@ -107,7 +98,6 @@ def run_experiment(model_name, model, data, experiment_alpha=0.6):
         results_list.append(results)
         print(f"  - Score: {score_type:<17} | Q95: {results['q95']:.4f} | Q99: {results['q99']:.4f}")
 
-    # --- Préparation pour rapport détaillé ---
     with torch.no_grad():
         model.eval()
         pop_pred, country_pred, _ = model(data.x, data.edge_index)
@@ -119,11 +109,10 @@ def run_experiment(model_name, model, data, experiment_alpha=0.6):
         idx = data.country_labels[node_idx]
         if idx not in country_idx_to_name:
             country_idx_to_name[idx] = data.country_names[node_idx]
-            
+
     anomalies = evaluator.get_top_anomalies(all_scores['combined_score'], k=10)
-    
-    # --- Boucle d'affichage détaillée ---
-    print(f"\n📊 Top 10 Anomalies (basé sur 'combined_score'):")
+
+    print(f"\nTop 10 Anomalies (basé sur 'combined_score'):")
     print("=" * 80)
     for i, a in enumerate(anomalies, 1):
         idx = a['index']
@@ -136,7 +125,7 @@ def run_experiment(model_name, model, data, experiment_alpha=0.6):
         observed_country_idx = data.country_labels[idx]
         predicted_country_idx = predicted_countries[idx]
         predicted_country = country_idx_to_name.get(predicted_country_idx, f"UNKNOWN_{predicted_country_idx}")
-        country_match = "✅" if observed_country_idx == predicted_country_idx else "❌"
+        country_match = "[OK]" if observed_country_idx == predicted_country_idx else "[X]"
 
         pop_err = all_scores['population_error'][idx]
         ctry_scr = all_scores['country_score'][idx]
@@ -147,22 +136,18 @@ def run_experiment(model_name, model, data, experiment_alpha=0.6):
         print(f"      Différence          : {pop_diff:>+12,.0f} ({pop_diff_pct:+.1f}%)")
         print(f"      Pays observé        : {observed_country}")
         print(f"      Pays prédit         : {predicted_country} {country_match}")
-        print(f"      📈 Score Population  : {pop_err:.4f}")
-        print(f"      🌍 Score Pays        : {ctry_scr:.4f}")
+        print(f"      Score Population    : {pop_err:.4f}")
+        print(f"      Score Pays          : {ctry_scr:.4f}")
         print(f"      Score d'anomalie    : {a['score']:.4f}")
     print("\n" + "=" * 80)
 
     return results_list, all_scores, history
 
 
-# =====================================================================
-# FONCTION D'EXPÉRIENCE ANOMALY-GUIDED
-# =====================================================================
-
 def run_anomaly_guided_experiment(gat_config, data):
     """Lance une expérience avec Anomaly-Guided Learning"""
     print("\n" + "=" * 60)
-    print("🚀 ANOMALY-GUIDED LEARNING (GAT + Link Detection)")
+    print("ANOMALY-GUIDED LEARNING (GAT + Link Detection)")
     print("=" * 60)
 
     num_classes = len(np.unique(data.country_labels))
@@ -196,7 +181,7 @@ def run_anomaly_guided_experiment(gat_config, data):
     results_list = []
     score_types = ['combined_score', 'population_error', 'country_score', 'link_score']
 
-    print("\n📊 Évaluation des scores:")
+    print("\nÉvaluation des scores:")
     for score_type in score_types:
         test_scores = scores[score_type][data.test_mask.cpu().numpy()]
         results = {
@@ -224,7 +209,7 @@ def run_anomaly_guided_experiment(gat_config, data):
         if idx not in country_idx_to_name:
             country_idx_to_name[idx] = data.country_names[node_idx]
 
-    print(f"\n📊 Top 10 Anomalies de Nœuds (guidé par liens):")
+    print(f"\nTop 10 Anomalies de Nœuds (guidé par liens):")
     print("=" * 80)
     for i, a in enumerate(anomalies, 1):
         idx = a['index']
@@ -237,7 +222,7 @@ def run_anomaly_guided_experiment(gat_config, data):
         observed_country_idx = data.country_labels[idx]
         predicted_country_idx = predicted_countries[idx]
         predicted_country = country_idx_to_name.get(predicted_country_idx, f"UNKNOWN_{predicted_country_idx}")
-        country_match = "✅" if observed_country_idx == predicted_country_idx else "❌"
+        country_match = "[OK]" if observed_country_idx == predicted_country_idx else "[X]"
 
         link_score = scores['link_score'][idx]
 
@@ -247,7 +232,7 @@ def run_anomaly_guided_experiment(gat_config, data):
         print(f"      Différence          : {pop_diff:>+12,.0f} ({pop_diff_pct:+.1f}%)")
         print(f"      Pays observé        : {observed_country}")
         print(f"      Pays prédit         : {predicted_country} {country_match}")
-        print(f"      🔗 Score liens      : {link_score:.4f}")
+        print(f"      Score liens         : {link_score:.4f}")
         print(f"      Score d'anomalie    : {a['score']:.4f}")
     print("\n" + "=" * 80)
 
@@ -257,10 +242,6 @@ def run_anomaly_guided_experiment(gat_config, data):
     return results_list, scores, history
 
 
-# =====================================================================
-# EXPÉRIENCE COMPLÈTE (AVEC ANOMALY-GUIDED)
-# =====================================================================
-
 def run_full_experiment(gat_config, run_name_suffix="Run", include_anomaly_guided=True):
     """
     Lance les baselines, UN GAT, l'ablation, et optionnellement Anomaly-Guided
@@ -268,20 +249,18 @@ def run_full_experiment(gat_config, run_name_suffix="Run", include_anomaly_guide
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = Path('results') / f'run_{timestamp}_{run_name_suffix}'
     run_dir.mkdir(parents=True, exist_ok=True)
-    
-    # --- Démarrer le Logger ---
+
     original_stdout = sys.stdout
     log_path = run_dir / 'console_log.txt'
     logger = Logger(log_path, original_stdout)
     sys.stdout = logger
-    # --- Fin ---
 
     try:
-        print(f"💻 Device: {DEVICE}\n")
-        print(f"💾 Résultats sauvegardés dans: {run_dir}")
-        print(f"🗒️  Log console sauvegardé dans: {log_path.name}")
+        print(f"Device: {DEVICE}\n")
+        print(f"Résultats sauvegardés dans: {run_dir}")
+        print(f"Log console sauvegardé dans: {log_path.name}")
 
-        print("📂 Loading data...")
+        print("Loading data...")
         loader = AirportDataLoader(DATA_PATH)
         data = loader.load_data()
 
@@ -305,7 +284,7 @@ def run_full_experiment(gat_config, run_name_suffix="Run", include_anomaly_guide
         }
 
         print("\n" + "=" * 60)
-        print(f"🔬 Configuration '{gat_model_name}':")
+        print(f"Configuration '{gat_model_name}':")
         print(f"  - hidden_channels: {gat_config['hidden_channels']}")
         print(f"  - num_layers: {gat_config['num_layers']}")
         print(f"  - num_heads: {gat_config['num_heads']}")
@@ -316,7 +295,6 @@ def run_full_experiment(gat_config, run_name_suffix="Run", include_anomaly_guide
         all_scores = {}
         all_histories = {}
 
-        # === 1. MODÈLES STANDARDS ===
         for name, model in models_to_run.items():
             try:
                 results_list, scores, history = run_experiment(name, model, data, experiment_alpha=DEFAULT_ALPHA)
@@ -324,26 +302,24 @@ def run_full_experiment(gat_config, run_name_suffix="Run", include_anomaly_guide
                 all_scores[name] = scores
                 all_histories[name] = history
             except Exception as e:
-                print(f"❌ Error with {name}: {e}")
+                print(f"Error with {name}: {e}")
                 import traceback
                 traceback.print_exc()
 
-        # === 2. ANOMALY-GUIDED LEARNING ===
         if include_anomaly_guided:
             try:
                 results_ag, scores_ag, history_ag = run_anomaly_guided_experiment(gat_config, data)
                 all_results.extend(results_ag)
                 all_scores["GAT + Anomaly-Guided"] = scores_ag
                 all_histories["GAT + Anomaly-Guided"] = history_ag
-                print("\n✅ Anomaly-Guided terminé avec succès!")
+                print("\nAnomaly-Guided terminé avec succès!")
             except Exception as e:
-                print(f"❌ Error with Anomaly-Guided: {e}")
+                print(f"Error with Anomaly-Guided: {e}")
                 import traceback
                 traceback.print_exc()
 
-        # === 3. ABLATION STUDY ===
         print("\n" + "=" * 60)
-        print(f"🔬 ABLATION STUDY sur '{gat_model_name}'")
+        print(f"ABLATION STUDY sur '{gat_model_name}'")
         print("=" * 60)
 
         ablation_configs = {
@@ -371,24 +347,22 @@ def run_full_experiment(gat_config, run_name_suffix="Run", include_anomaly_guide
                 all_scores[name] = scores
                 all_histories[name] = history
             except Exception as e:
-                print(f"❌ Error with {name}: {e}")
+                print(f"Error with {name}: {e}")
 
-        # === 4. RAPPORT FINAL ===
         df = pd.DataFrame(all_results)
         df_combined = df[df['score_type'] == 'combined_score'].sort_values(by='q95', ascending=True)
 
         print("\n" + "=" * 60)
-        print("📊 RESULTS COMPARISON")
+        print("RESULTS COMPARISON")
         print("=" * 60)
         with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.width', 1000):
             print(df_combined.to_string(index=False, float_format="%.4f"))
 
         csv_path = run_dir / 'comparison_full_results.csv'
         df.to_csv(csv_path, index=False)
-        print(f"\n💾 Résultats sauvegardés: {csv_path}")
+        print(f"\nRésultats sauvegardés: {csv_path}")
 
-        # Visualisations
-        print("\n📊 Generating visualizations...")
+        print("\nGenerating visualizations...")
         viz = Visualizer(save_dir=run_dir)
 
         for name, history in all_histories.items():
@@ -402,24 +376,18 @@ def run_full_experiment(gat_config, run_name_suffix="Run", include_anomaly_guide
             viz.plot_tsne(best_scores_dict['embeddings'], data.country_labels, best_combined_scores)
             viz.plot_main_comparison(df, gat_model_name)
             viz.plot_ablation_study(df, gat_model_name)
-            print(f"\n✅ Done! Check '{run_dir}' for results")
+            print(f"\nDone! Check '{run_dir}' for results")
         except Exception as e:
-            print(f"\n❌ Error visualizations: {e}")
-            
+            print(f"\nError visualizations: {e}")
+
     except Exception as e:
-        print(f"❌ Une erreur majeure est survenue: {e}")
+        print(f"Une erreur majeure est survenue: {e}")
         import traceback
         traceback.print_exc()
     finally:
-        # --- Restaurer stdout ---
         sys.stdout = original_stdout
         logger.close()
-        # --- Fin ---
 
-
-# =====================================================================
-# NOUVELLE FONCTION POUR LE GRID SEARCH ANOMALY-GUIDED
-# =====================================================================
 
 def run_anomaly_guided_grid_search_step(model_name, gat_config, data):
     """
@@ -427,7 +395,7 @@ def run_anomaly_guided_grid_search_step(model_name, gat_config, data):
     N'imprime pas les top 10 anomalies pour éviter de polluer le log.
     """
     print(f"\n--- [AG Run] {model_name} ---")
-    
+
     num_classes = len(np.unique(data.country_labels))
     in_channels = data.x.shape[1]
 
@@ -440,13 +408,12 @@ def run_anomaly_guided_grid_search_step(model_name, gat_config, data):
     )
 
     trainer = TrainerWithAnomalyGuidedLearning(model, data, DEVICE)
-    # Utiliser un plus petit batch pour le grid search pour accélérer
-    trainer.prepare_link_batches(num_samples=1000) 
+    trainer.prepare_link_batches(num_samples=1000)
 
     history = trainer.fit(
         epochs=EPOCHS, lr=LEARNING_RATE,
-        alpha=0.5, beta=0.3, gamma=0.2, # Poids de loss fixes
-        patience=25 # Utiliser la même patience que les autres
+        alpha=0.5, beta=0.3, gamma=0.2,
+        patience=25
     )
 
     evaluator = AnomalyEvaluatorWithLinkGuidance(
@@ -455,16 +422,15 @@ def run_anomaly_guided_grid_search_step(model_name, gat_config, data):
     scores = evaluator.compute_anomaly_scores()
 
     results_list = []
-    # Note: 'train_alpha' est fixé à 0.5 pour ce modèle (poids de la pop)
-    fixed_alpha_for_ag = 0.5 
+    fixed_alpha_for_ag = 0.5
     score_types = ['combined_score', 'population_error', 'country_score', 'link_score']
 
-    print("  📊 Évaluation (sur ensemble test):")
+    print("  Évaluation (sur ensemble test):")
     for score_type in score_types:
         test_scores = scores[score_type][data.test_mask.cpu().numpy()]
         results = {
             'model': model_name,
-            'train_alpha': fixed_alpha_for_ag, 
+            'train_alpha': fixed_alpha_for_ag,
             'score_type': score_type,
             'mean_score': float(np.mean(test_scores)),
             'std_score': float(np.std(test_scores)),
@@ -477,37 +443,28 @@ def run_anomaly_guided_grid_search_step(model_name, gat_config, data):
     return results_list, scores, history
 
 
-# =====================================================================
-# GRID SEARCH (MODIFIÉ POUR INCLURE ANOMALY-GUIDED)
-# =====================================================================
-
 def run_grid_search_experiment():
     """Grid Search complet (Baselines + GAT grid + GAT Anomaly-Guided grid)"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_dir = Path('results') / f'run_{timestamp}_GridSearch_Full' # Nom mis à jour
+    run_dir = Path('results') / f'run_{timestamp}_GridSearch_Full'
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    # --- Démarrer le Logger ---
     original_stdout = sys.stdout
     log_path = run_dir / 'console_log.txt'
     logger = Logger(log_path, original_stdout)
     sys.stdout = logger
-    # --- Fin ---
 
     try:
-        print(f"💻 Device: {DEVICE}\n")
-        print(f"💾 Résultats sauvegardés dans: {run_dir}")
-        print(f"🗒️  Log console sauvegardé dans: {log_path.name}")
+        print(f"Device: {DEVICE}\n")
+        print(f"Résultats sauvegardés dans: {run_dir}")
+        print(f"Log console sauvegardé dans: {log_path.name}")
 
-        print("📂 Loading data...")
+        print("Loading data...")
         loader = AirportDataLoader(DATA_PATH)
         data = loader.load_data()
-        
-        # --- MODIFICATION ---
-        # Calculer les features enrichies (nécessaire pour Anomaly-Guided)
-        print("\n🔧 Calcul des features de connectivité (requis pour Phase 2b)...")
+
+        print("\nCalcul des features de connectivité (requis pour Phase 2b)...")
         data = compute_connectivity_features(data)
-        # --- FIN MODIFICATION ---
 
         num_classes = len(np.unique(data.country_labels))
         in_channels = data.x.shape[1]
@@ -516,9 +473,8 @@ def run_grid_search_experiment():
         all_scores = {}
         all_histories = {}
 
-        # Phase 1: Baselines
         print("\n" + "=" * 60)
-        print("🔬 Phase 1: Baselines")
+        print("Phase 1: Baselines")
         print("=" * 60)
 
         baseline_models = {
@@ -533,9 +489,7 @@ def run_grid_search_experiment():
                 all_scores[name] = scores
                 all_histories[name] = history
             except Exception as e:
-                print(f"❌ Error with {name}: {e}")
-
-        # --- MODIFICATION: Phase 2 divisée en 2a et 2b ---
+                print(f"Error with {name}: {e}")
 
         h_channels = GAT_GRID_SEARCH_CONFIG['hidden_channels']
         n_layers = GAT_GRID_SEARCH_CONFIG['num_layers']
@@ -543,10 +497,9 @@ def run_grid_search_experiment():
 
         best_gat_results = None
         best_gat_q95 = float('inf')
-        
-        # Phase 2a: Grid Search (Standard GAT)
+
         print("\n" + "=" * 60)
-        print("🔬 Phase 2a: Grid Search (Standard GAT)")
+        print("Phase 2a: Grid Search (Standard GAT)")
         print("=" * 60)
 
         grid_std = list(itertools.product(h_channels, n_layers, n_heads, TRAIN_ALPHAS_GRID))
@@ -582,21 +535,20 @@ def run_grid_search_experiment():
                         'history': history
                     }
             except Exception as e:
-                print(f"❌ Error with {model_name}: {e}")
+                print(f"Error with {model_name}: {e}")
 
-        # Phase 2b: Grid Search (Anomaly-Guided GAT)
         print("\n" + "=" * 60)
-        print("🔬 Phase 2b: Grid Search (Anomaly-Guided GAT)")
+        print("Phase 2b: Grid Search (Anomaly-Guided GAT)")
         print("=" * 60)
-        
+
         grid_ag = list(itertools.product(h_channels, n_layers, n_heads))
         total_runs_ag = len(grid_ag)
         print(f"Total experiments (Anomaly-Guided): {total_runs_ag}")
-        
+
         for i, (hidden, layers, heads) in enumerate(grid_ag):
             model_name = f"GAT_AG_h{hidden}_l{layers}_head{heads}"
             gat_config = {'hidden_channels': hidden, 'num_layers': layers, 'num_heads': heads}
-            
+
             try:
                 results_list, scores, history = run_anomaly_guided_grid_search_step(
                     model_name, gat_config, data
@@ -604,26 +556,20 @@ def run_grid_search_experiment():
                 all_results.extend(results_list)
                 all_scores[model_name] = scores
                 all_histories[model_name] = history
-                # Note: On ne met pas à jour `best_gat_results` ici, car il est
-                # spécifiquement utilisé pour l'ablation study (Phase 3)
-                # qui ne s'applique qu'au modèle standard.
             except Exception as e:
-                print(f"❌ Error with {model_name}: {e}")
-
-        # --- FIN MODIFICATION ---
+                print(f"Error with {model_name}: {e}")
 
         if best_gat_results is None:
-            print("❌ Aucun run GAT standard n'a réussi. Ablation study annulée.")
+            print("Aucun run GAT standard n'a réussi. Ablation study annulée.")
         else:
             best_name = best_gat_results['name']
             best_config = best_gat_results['config']
             print("\n" + "=" * 60)
-            print(f"🏆 Meilleure configuration (Standard GAT): {best_name} (Q95: {best_gat_q95:.4f})")
+            print(f"Meilleure configuration (Standard GAT): {best_name} (Q95: {best_gat_q95:.4f})")
             print("=" * 60)
 
-            # Phase 3: Ablation (basée sur le meilleur GAT *Standard*)
             print("\n" + "=" * 60)
-            print(f"🔬 Phase 3: Ablation Study (sur {best_name})")
+            print(f"Phase 3: Ablation Study (sur {best_name})")
             print("=" * 60)
 
             ablation_alphas = {}
@@ -648,62 +594,52 @@ def run_grid_search_experiment():
                     all_scores[name] = scores
                     all_histories[name] = history
                 except Exception as e:
-                    print(f"❌ Error with {name}: {e}")
+                    print(f"Error with {name}: {e}")
 
-        # Rapport final
         df = pd.DataFrame(all_results)
         df_combined = df[df['score_type'] == 'combined_score'].sort_values(by='q95', ascending=True)
 
         print("\n" + "=" * 60)
-        print("📊 RESULTS COMPARISON (Grid Search COMPLET)")
+        print("RESULTS COMPARISON (Grid Search COMPLET)")
         print("=" * 60)
         with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.width', 1000):
             print(df_combined.to_string(index=False, float_format="%.4f"))
 
         csv_path = run_dir / 'comparison_full_results.csv'
         df.to_csv(csv_path, index=False)
-        print(f"\n💾 Résultats sauvegardés: {csv_path}")
+        print(f"\nRésultats sauvegardés: {csv_path}")
 
-        # Visualisations
         viz = Visualizer(save_dir=run_dir)
         try:
-            # Trouver le meilleur modèle *global* pour les graphiques
             best_overall_model_name = df_combined.iloc[0]['model']
             best_overall_history = all_histories[best_overall_model_name]
             best_overall_scores_dict = all_scores[best_overall_model_name]
-            
-            print(f"\n🏆 Meilleur modèle global (tous types conf.): {best_overall_model_name}")
+
+            print(f"\nMeilleur modèle global (tous types conf.): {best_overall_model_name}")
 
             viz.plot_training_curves(best_overall_history, f'{best_overall_model_name}_BEST_OVERALL')
             best_combined_scores = best_overall_scores_dict['combined_score']
             viz.plot_anomaly_distribution(best_combined_scores, np.percentile(best_combined_scores, 95))
             viz.plot_tsne(best_overall_scores_dict['embeddings'], data.country_labels, best_combined_scores)
-            
-            # Les graphiques de comparaison incluront maintenant tout
-            viz.plot_main_comparison(df, best_overall_model_name) 
-            
-            if best_gat_results: # N'afficher l'ablation que si le GAT std a fonctionné
+
+            viz.plot_main_comparison(df, best_overall_model_name)
+
+            if best_gat_results:
                 viz.plot_ablation_study(df, best_gat_results['name'])
-                
-            viz.plot_grid_search_analysis(df) # N'affichera que les GAT std, ce qui est normal
-            print(f"\n✅ Done! Check '{run_dir}'")
+
+            viz.plot_grid_search_analysis(df)
+            print(f"\nDone! Check '{run_dir}'")
         except Exception as e:
-            print(f"\n❌ Error visualizations: {e}")
-            
+            print(f"\nError visualizations: {e}")
+
     except Exception as e:
-        print(f"❌ Une erreur majeure est survenue: {e}")
+        print(f"Une erreur majeure est survenue: {e}")
         import traceback
         traceback.print_exc()
     finally:
-        # --- Restaurer stdout ---
         sys.stdout = original_stdout
         logger.close()
-        # --- Fin ---
 
-
-# =====================================================================
-# REVIEW
-# =====================================================================
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -712,7 +648,7 @@ def clear_screen():
 def show_experiment_files(run_dir):
     clear_screen()
     print("=" * 70)
-    print(f"🔬 Visualisation: {run_dir.name}")
+    print(f"Visualisation: {run_dir.name}")
     print("=" * 70)
 
     files = sorted(list(run_dir.glob('*')))
@@ -721,11 +657,11 @@ def show_experiment_files(run_dir):
     log_files = [f for f in files if f.suffix == '.txt']
 
     if log_files:
-        print("\n--- 🗒️ Log Console ---")
+        print("\n--- Log Console ---")
         print(f"  - {log_files[0].name}")
 
     if csv_files:
-        print("\n--- 📊 Tableau de Comparaison ---")
+        print("\n--- Tableau de Comparaison ---")
         try:
             df = pd.read_csv(csv_files[0])
             df_combined = df[df['score_type'] == 'combined_score'].sort_values(by='q95', ascending=True)
@@ -735,7 +671,7 @@ def show_experiment_files(run_dir):
             print(f"Impossible de lire le CSV: {e}")
 
     if img_files:
-        print("\n--- 🖼️ Visualisations ---")
+        print("\n--- Visualisations ---")
         for img in img_files:
             print(f"  - {img.name}")
 
@@ -749,7 +685,7 @@ def review_experiments():
     while True:
         clear_screen()
         print("=" * 70)
-        print("📋 REVUE DES EXPÉRIENCES")
+        print("REVUE DES EXPÉRIENCES")
         print("=" * 70)
 
         if not results_dir.exists():
@@ -785,10 +721,6 @@ def review_experiments():
             input("Appuyez sur 'Entrée'...")
 
 
-# =====================================================================
-# MENU INTERACTIF
-# =====================================================================
-
 def safe_int_input(prompt, default):
     val_str = input(prompt)
     if val_str == "":
@@ -803,7 +735,7 @@ def safe_int_input(prompt, default):
 def get_interactive_gat_config():
     clear_screen()
     print("=" * 70)
-    print("🔧 CONFIGURATION GAT CUSTOMISÉE")
+    print("CONFIGURATION GAT CUSTOMISÉE")
     print("=" * 70)
     print("Entrez vos hyperparamètres (vide = défaut):")
 
@@ -837,33 +769,36 @@ def show_main_menu():
 
         if choice == '1':
             clear_screen()
-            print("🚀 Lancement expérience de base...")
+            print("Lancement expérience de base...")
             run_full_experiment(DEFAULT_GAT_CONFIG, run_name_suffix="BaseRun", include_anomaly_guided=True)
-            input("\n✅ Terminé. Appuyez sur 'Entrée'...")
+            input("\nTerminé. Appuyez sur 'Entrée'...")
 
         elif choice == '2':
             custom_config = get_interactive_gat_config()
             clear_screen()
-            print("🚀 Lancement expérience customisée...")
+            print("Lancement expérience customisée...")
             run_full_experiment(custom_config, run_name_suffix="CustomRun", include_anomaly_guided=True)
-            input("\n✅ Terminé. Appuyez sur 'Entrée'...")
+            input("\nTerminé. Appuyez sur 'Entrée'...")
 
         elif choice == '3':
             clear_screen()
-            print("🚀 Lancement Grid Search Complet...")
-            
-            # Calcul du nombre total de runs
-            std_runs = len(list(itertools.product(GAT_GRID_SEARCH_CONFIG['hidden_channels'], GAT_GRID_SEARCH_CONFIG['num_layers'], GAT_GRID_SEARCH_CONFIG['num_heads'], TRAIN_ALPHAS_GRID)))
-            ag_runs = len(list(itertools.product(GAT_GRID_SEARCH_CONFIG['hidden_channels'], GAT_GRID_SEARCH_CONFIG['num_layers'], GAT_GRID_SEARCH_CONFIG['num_heads'])))
+            print("Lancement Grid Search Complet...")
+
+            std_runs = len(list(
+                itertools.product(GAT_GRID_SEARCH_CONFIG['hidden_channels'], GAT_GRID_SEARCH_CONFIG['num_layers'],
+                                  GAT_GRID_SEARCH_CONFIG['num_heads'], TRAIN_ALPHAS_GRID)))
+            ag_runs = len(list(
+                itertools.product(GAT_GRID_SEARCH_CONFIG['hidden_channels'], GAT_GRID_SEARCH_CONFIG['num_layers'],
+                                  GAT_GRID_SEARCH_CONFIG['num_heads'])))
             total_runs = std_runs + ag_runs
-            
-            print(f"\n⚠️  Cela va lancer {std_runs} (Standard GAT) + {ag_runs} (Anomaly-Guided) = {total_runs} exécutions.")
+
+            print(f"\nCela va lancer {std_runs} (Standard GAT) + {ag_runs} (Anomaly-Guided) = {total_runs} exécutions.")
             print("   (Le Grid Search Anomaly-Guided est plus long par exécution)")
             confirm = input("Continuer ? (o/n): ")
-            
+
             if confirm.lower() == 'o':
                 run_grid_search_experiment()
-                input("\n✅ Terminé. Appuyez sur 'Entrée'...")
+                input("\nTerminé. Appuyez sur 'Entrée'...")
             else:
                 print("\nAnnulé.")
                 input("Appuyez sur 'Entrée'...")
